@@ -1,0 +1,21 @@
+ID,Nome_Ficticio,Hard_Python,Hard_React,Hard_AWS,Hard_Docker,Hard_SQL,Soft_Lideranca,Soft_Comunicacao,Soft_ResolucaoProb,Soft_Autonomia,Soft_Negociacao,Ingles,Anos_Experiencia,Pretensao_Salarial_BRL,Perfil_Esperado_Oculto
+1,Lucas (Estagiário Back),Iniciante,Não possuo,Não possuo,Não possuo,Iniciante,Não possuo,Iniciante,Iniciante,Iniciante,Não possuo,Básico,0,1500,Estagiário
+2,Marina (Estagiária Full),Iniciante,Iniciante,Não possuo,Não possuo,Iniciante,Iniciante,Consegue Ensinar,Iniciante,Iniciante,Não possuo,Intermediário,1,2000,Estagiário
+3,João (Dev Jr),Consegue Ensinar,Não possuo,Iniciante,Iniciante,Consegue Ensinar,Não possuo,Iniciante,Consegue Ensinar,Consegue Ensinar,Não possuo,Intermediário,2,4000,Júnior
+4,Ana (Dev Jr Front),Não possuo,Consegue Ensinar,Não possuo,Não possuo,Iniciante,Iniciante,Consegue Ensinar,Iniciante,Consegue Ensinar,Não possuo,Avançado,2,4500,Júnior
+5,Pedro (Dev Pleno Back),Especialista,Não possuo,Consegue Ensinar,Consegue Ensinar,Especialista,Iniciante,Consegue Ensinar,Especialista,Especialista,Iniciante,Avançado,5,8000,Pleno
+6,Carla (Dev Pleno Full),Consegue Ensinar,Consegue Ensinar,Iniciante,Iniciante,Consegue Ensinar,Iniciante,Especialista,Consegue Ensinar,Especialista,Iniciante,Fluente/Nativo,4,9000,Pleno
+7,Marcos (Especialista Técnico),Especialista,Não possuo,Especialista,Especialista,Especialista,Não possuo,Iniciante,Especialista,Especialista,Não possuo,Fluente/Nativo,10,16000,Especialista
+8,Sofia (Tech Lead),Especialista,Consegue Ensinar,Especialista,Consegue Ensinar,Especialista,Especialista,Especialista,Especialista,Especialista,Consegue Ensinar,Fluente/Nativo,12,18000,Tech Lead
+9,Ricardo (Cloud Architect),Consegue Ensinar,Não possuo,Especialista,Especialista,Especialista,Consegue Ensinar,Consegue Ensinar,Especialista,Especialista,Especialista,Fluente/Nativo,15,22000,Arquiteto
+10,Julia (PM / Agile),Não possuo,Não possuo,Iniciante,Não possuo,Iniciante,Especialista,Especialista,Especialista,Especialista,Especialista,Fluente/Nativo,8,14000,Project Manager
+11,Felipe (O Iludido),Iniciante,Iniciante,Não possuo,Não possuo,Iniciante,Especialista,Especialista,Consegue Ensinar,Iniciante,Não possuo,Básico,1,15000,Anomalia (Rejeitar)
+12,Camila (Sênior Front),Não possuo,Especialista,Iniciante,Não possuo,Consegue Ensinar,Consegue Ensinar,Especialista,Especialista,Especialista,Iniciante,Avançado,8,12000,Sênior
+13,Diego (Sênior Back),Especialista,Não possuo,Consegue Ensinar,Especialista,Especialista,Iniciante,Consegue Ensinar,Especialista,Especialista,Iniciante,Avançado,7,11000,Sênior
+14,Amanda (Eng. de Dados Pleno),Especialista,Não possuo,Consegue Ensinar,Consegue Ensinar,Especialista,Iniciante,Consegue Ensinar,Consegue Ensinar,Especialista,Não possuo,Intermediário,4,8500,Pleno
+15,Roberto (DevOps Sênior),Consegue Ensinar,Não possuo,Especialista,Especialista,Consegue Ensinar,Consegue Ensinar,Consegue Ensinar,Especialista,Especialista,Iniciante,Fluente/Nativo,9,14500,Sênior
+16,Beatriz (Tech Lead Global),Especialista,Especialista,Especialista,Especialista,Especialista,Especialista,Especialista,Especialista,Especialista,Especialista,Fluente/Nativo,14,28000,Tech Lead
+17,Thiago (Júnior Estagnado),Consegue Ensinar,Iniciante,Não possuo,Não possuo,Consegue Ensinar,Não possuo,Não possuo,Iniciante,Iniciante,Não possuo,Básico,5,4000,Júnior
+18,Fernanda (Pleno com perfil de Liderança),Consegue Ensinar,Consegue Ensinar,Iniciante,Iniciante,Consegue Ensinar,Especialista,Especialista,Especialista,Especialista,Consegue Ensinar,Avançado,4,9500,Tech Lead / Pleno
+19,Eduardo (Estagiário Prodígio),Consegue Ensinar,Consegue Ensinar,Iniciante,Consegue Ensinar,Consegue Ensinar,Iniciante,Especialista,Consegue Ensinar,Especialista,Iniciante,Fluente/Nativo,1,3500,Júnior
+20,Vanessa (Arquiteta de Software),Especialista,Consegue Ensinar,Especialista,Especialista,Especialista,Especialista,Especialista,Especialista,Especialista,Especialista,Fluente/Nativo,18,25000,Arquiteto

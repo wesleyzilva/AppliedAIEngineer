@@ -1,0 +1,16 @@
+{
+  "name": "hr_recomendationtraining",
+  "version": "1.0.0",
+  "description": "Motor de Recomendação de RH com TensorFlow.js",
+  "main": "index.js",
+  "scripts": {
+    "start": "browser-sync -w . --server --files index.html,discordCandidate.csv,js/*.js --port 3000"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "browser-sync": "^3.0.4",
+    "papaparse": "^5.7.0"
+  }
+}

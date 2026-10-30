@@ -2,7 +2,7 @@
 
 > **Instrução de Uso:** Copie todo o conteúdo deste arquivo (ou salve-o na raiz do seu repositório `https://github.com/wesleyzilva/AppliedAIEngineer.git` como `CLAUDE.md` / `.cursorrules` / `PROMPT_MESTRE.md`) e envie para a sua IA assistente no Cursor, Claude ou VS Code com o comando:
 > *"Leia este documento mestre e execute o Passo 1 (Scaffolding completo do Monorepo, scripts de inicialização e arquivos base)."*
-
+ 
 ---
 
 ## 🤖 1. SYSTEM PROMPT PARA O AGENTE DE IA (CURSOR / CLAUDE / COPILOT)
