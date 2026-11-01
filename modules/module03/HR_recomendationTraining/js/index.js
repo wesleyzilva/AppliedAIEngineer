@@ -1,7 +1,10 @@
+
 // ============================================================================
 // 1. GERENCIAMENTO DE ESTADO & UI DO LABORATÓRIO
 // ============================================================================
 let listaCandidatosCache = [];
+// 1. Variável global para armazenar os pontos do gráfico
+
 const historicoLoss = [];
 
 // Instanciação do Web Worker com Cache Busting para recarregar alterações imediatamente
@@ -68,69 +71,39 @@ function dispararIngestao() {
 // ============================================================================
 // 3. COMUNICAÇÃO DE MENSAGENS COM O WEB WORKER (MLOPS EM TEMPO REAL)
 // ============================================================================
+// js/index.js
+
 worker.onmessage = (e) => {
     const { tipo, dados } = e.data;
 
-    // Notificação: Conclusão da Vetorização
-    if (tipo === 'VETORIZACAO_CONCLUIDA') {
-        document.getElementById('card-step-2').className = 'card card-step completed mb-3';
-        document.getElementById('badge-step-2').className = 'badge bg-success';
-        document.getElementById('badge-step-2').innerText = 'Tensores [26 Features]';
+    // QUANDO RECEBER UMA ÉPOCA DE TREINO:
+    if (tipo === 'LOG_EPOCA' || e.data.status === 'treinando') {
+        const epocaAtual = dados ? dados.epoca : e.data.epoch;
+        const erroAtual = dados ? dados.loss : e.data.loss;
 
-        document.getElementById('card-step-3').className = 'card card-step active mb-3';
-        document.getElementById('badge-step-3').className = 'badge bg-warning text-dark';
-        document.getElementById('badge-step-3').innerText = 'Descida do Gradiente';
+        // 1. AQUI: Adiciona o ponto { x, y } ao histórico
+        historicoLoss.push({ x: epocaAtual, y: erroAtual });
 
-        registrarLog(`Tensores prontos. ${dados.totalPares} pares de treino (Candidato x Vaga) criados.`);
-        console.log(`[MLOps] Matriz de entrada criada com dimensão: [${dados.totalPares}, 26]`);
-    }
-
-    // Notificação: Época de Treino Concluída
-    if (tipo === 'LOG_EPOCA') {
-        const percentual = Math.round((dados.epoca / dados.totalEpocas) * 100);
-        const bar = document.getElementById('progressBarTreino');
-        bar.style.width = `${percentual}%`;
-        bar.innerText = `Época ${dados.epoca}/${dados.totalEpocas} (Loss: ${dados.loss.toFixed(4)})`;
-
-        registrarLog(`Treino | Época ${dados.epoca}/${dados.totalEpocas} - Erro Médio (Loss): ${dados.loss.toFixed(4)}`);
-
-        // Renderiza o gráfico contínuo da Curva de Perda no tfjs-vis
-        historicoLoss.push({ x: dados.epoca, y: dados.loss });
+        // 2. AQUI: Manda o tfjs-vis desenhar/atualizar o gráfico de linhas
         tfvis.render.linechart(
-            { name: 'Evolução da Função de Custo (Loss)', tab: 'Métricas de Treino' },
-            { values: historicoLoss, series: ['Erro Quadrático Médio (MSE)'] },
-            { xLabel: 'Épocas', yLabel: 'Loss', height: 240 }
+            { 
+                name: 'Evolução da Função de Custo (Loss)', 
+                tab: 'Métricas de Treino' 
+            },
+            { 
+                values: historicoLoss, 
+                series: ['Erro Quadrático Médio (MSE)'] 
+            },
+            { 
+                xLabel: 'Épocas de Treinamento', 
+                yLabel: 'Loss (Erro Médio)', 
+                height: 250,
+                zoomToFit: true 
+            }
         );
     }
 
-    // Notificação: Treinamento Concluído com Sucesso
-    if (tipo === 'TREINO_FINALIZADO') {
-        document.getElementById('card-step-3').className = 'card card-step completed mb-3';
-        document.getElementById('badge-step-3').className = 'badge bg-success';
-        document.getElementById('badge-step-3').innerText = 'Convergência Atingida';
-
-        const bar = document.getElementById('progressBarTreino');
-        bar.style.width = '100%';
-        bar.className = 'progress-bar bg-success';
-        bar.innerText = 'Treinamento 100% Concluído';
-
-        document.getElementById('card-step-4').className = 'card card-step active mb-3';
-        document.getElementById('badge-step-4').className = 'badge bg-success';
-        document.getElementById('badge-step-4').innerText = 'Pronto para Teste';
-
-        registrarLog("✅ Treinamento finalizado. A rede neural calibrou os pesos sinápticos.");
-        habilitarSelecaoDePerfis();
-
-        // Faz uma inferência inicial com a Sofia (índice 7, ID 8) para preencher a tela
-        document.getElementById('selectCandidato').value = 7;
-        document.getElementById('selectCandidato').dispatchEvent(new Event('change'));
-        document.getElementById('btnValidarPerfil').click();
-    }
-
-    // Notificação: Resultado da Inferência Recebido
-    if (tipo === 'RESULTADO_INFERENCIA') {
-        renderizarResultadoInferencial(dados);
-    }
+    // ... outros ifs (TREINO_FINALIZADO, RESULTADO_INFERENCIA, etc.)
 };
 
 // ============================================================================

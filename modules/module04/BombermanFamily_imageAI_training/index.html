@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bomberman Family - Raio-X de Aquecimento, Pré-processamento, Tensores & YOLO</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #050814;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #game-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #0f172a 0%, #050814 100%);
+      border-right: 2px solid #1e293b;
+      padding: 10px;
+      position: relative;
+    }
+    .arena-header {
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .arena-header h1 {
+      font-size: 1.05rem;
+      color: #00ffcc;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .arena-header p {
+      font-size: 0.73rem;
+      color: #94a3b8;
+    }
+    .scoreboard {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 8px;
+      background: #111827;
+      padding: 6px 16px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      font-family: monospace;
+      font-size: 0.8rem;
+      align-items: center;
+    }
+    .p1-badge { color: #f87171; font-weight: bold; }
+    .p2-badge { color: #38bdf8; font-weight: bold; }
+    #game-wrapper {
+      position: relative;
+      line-height: 0;
+      border: 3px solid #334155;
+      border-radius: 8px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.7);
+    }
+    #yolo-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+
+    #dashboard-pane {
+      width: 620px;
+      background: #0b1120;
+      display: flex;
+      flex-direction: column;
+      padding: 10px 12px;
+      gap: 7px;
+      overflow-y: auto;
+    }
+    .card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 6px;
+      padding: 7px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .card h2 {
+      font-size: 0.72rem;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid #1f2937;
+      padding-bottom: 3px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pipeline-steps {
+      display: flex;
+      gap: 4px;
+      font-family: monospace;
+      font-size: 0.63rem;
+    }
+    .step-badge {
+      flex: 1;
+      text-align: center;
+      padding: 4px 2px;
+      background: #1e293b;
+      border-radius: 4px;
+      color: #64748b;
+      border: 1px solid #334155;
+    }
+    .step-badge.active {
+      background: rgba(0, 255, 204, 0.15);
+      color: #00ffcc;
+      border-color: #00ffcc;
+      font-weight: bold;
+    }
+    .fighters-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .fighter-box {
+      background: #1e293b;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .fighter-box.p1 { border-left: 3px solid #ef4444; }
+    .fighter-box.p2 { border-left: 3px solid #3b82f6; }
+    .face-preview-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .face-canvas {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      border: 2px solid #00ffcc;
+      background: #030712;
+      image-rendering: pixelated;
+    }
+    select {
+      width: 100%;
+      background: #0f172a;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      padding: 3px 5px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+    }
+    .val { font-family: monospace; font-weight: bold; color: #facc15; }
+    .val.green { color: #4ade80; }
+    .val.cyan { color: #38bdf8; }
+    .val.red { color: #f87171; }
+    .val.purple { color: #c084fc; }
+
+    .xray-grid {
+      display: grid;
+      grid-template-columns: 165px 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+    .matrix-box {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      background: #030712;
+      padding: 5px;
+      border-radius: 4px;
+      border: 1px solid #374151;
+    }
+    .pixel-matrix {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+    }
+    .px-cell {
+      font-family: monospace;
+      font-size: 0.55rem;
+      text-align: center;
+      padding: 3px 1px;
+      border-radius: 2px;
+      color: #fff;
+      text-shadow: 0 1px 2px #000;
+      font-weight: bold;
+    }
+    #nn-canvas {
+      width: 100%;
+      height: 112px;
+      background: #030712;
+      border-radius: 4px;
+      border: 1px solid #374151;
+    }
+
+    .yolo-box {
+      background: #030712;
+      border: 1px solid #374151;
+      border-radius: 4px;
+      padding: 6px;
+      font-family: monospace;
+      font-size: 0.65rem;
+      color: #fde047;
+      min-height: 68px;
+      max-height: 74px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.35;
+    }
+
+    #metrics-canvas {
+      width: 100%;
+      height: 80px;
+      background: #030712;
+      border-radius: 4px;
+      border: 1px solid #374151;
+    }
+    .chart-legend {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.62rem;
+      font-family: monospace;
+      color: #94a3b8;
+    }
+    #console-log {
+      flex: 1;
+      background: #030712;
+      color: #4ade80;
+      font-family: 'Consolas', monospace;
+      font-size: 0.66rem;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #374151;
+      overflow-y: auto;
+      min-height: 105px;
+      max-height: 145px;
+      white-space: pre-wrap;
+      line-height: 1.32;
+    }
+    .btn-row { display: flex; gap: 5px; }
+    button {
+      flex: 1;
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.15); }
+    button.retrain { background: #059669; }
+    button.step-btn { background: #4f46e5; }
+    button.yolo-btn { background: #d97706; }
+    button.dataset-btn { background: #7c3aed; }
+  </style>
+</head>
+<body>
+  <!-- ARENA PIXI.JS + OVERLAY YOLO -->
+  <div id="game-pane">
+    <div class="arena-header">
+      <h1>Bomberman Family · Aquecimento, Memória de Tensor & Visão YOLO</h1>
+      <p>Tela 720x624px | Pré-processamento 32x32 | Limpeza tensor.dispose() | 1º Objeto Filtrado</p>
+    </div>
+    <div class="scoreboard">
+      <div class="p1-badge" id="score-p1">P1 (Heitor): HP 100% | 50 ép</div>
+      <div style="color:#94a3b8;">VS</div>
+      <div class="p2-badge" id="score-p2">P2 (Daiana): HP 100% | 28 ép</div>
+    </div>
+    <div id="game-wrapper">
+      <div id="game-container"></div>
+      <canvas id="yolo-overlay" width="720" height="624"></canvas>
+    </div>
+  </div>
+
+  <!-- DASHBOARD LATERAL -->
+  <div id="dashboard-pane">
+    <!-- PIPELINE E TELEMETRIA DE AQUECIMENTO / MEMÓRIA -->
+    <div class="card">
+      <h2>Checkpoints de Validação <span id="worker-status" style="color:#00ffcc;">● PRONTO</span></h2>
+      <div class="pipeline-steps">
+        <div class="step-badge" id="st-1">1. Tela & Recorte</div>
+        <div class="step-badge" id="st-2">2. Luminância RGB</div>
+        <div class="step-badge" id="st-3">3. Norm & dispose()</div>
+        <div class="step-badge" id="st-4">4. Warmup & Treino</div>
+        <div class="step-badge" id="st-5">5. YOLO 1º Objeto</div>
+      </div>
+      <div class="row" style="margin-top:2px;">
+        <span>Aquecimento (Warmup) & Tela:</span>
+        <span class="val" id="m-warmup-info">Tela 720x624px | Aguardando warmup...</span>
+      </div>
+      <div class="row">
+        <span>Memória de Tensores (dispose):</span>
+        <span class="val purple" id="m-tensor-mem">Ativos: 0 | Limpos (dispose): 0</span>
+      </div>
+    </div>
+
+    <!-- SELEÇÃO DE JOGADORES -->
+    <div class="card">
+      <h2>1. Lutadores & Épocas de Treinamento</h2>
+      <div class="fighters-grid">
+        <div class="fighter-box p1">
+          <select id="select-p1">
+            <option value="samuel">Samuel (12 Épocas - Iniciante)</option>
+            <option value="daiana">Daiana (28 Épocas - Intermediária)</option>
+            <option value="heitor" selected>Heitor (50 Épocas - Avançado)</option>
+            <option value="wesley">Wesley (85 Épocas - Mestre IA)</option>
+          </select>
+          <div class="face-preview-row">
+            <canvas id="face-p1" class="face-canvas" width="32" height="32"></canvas>
+            <div style="flex:1;">
+              <div class="row"><span>Confiança:</span><span class="val green" id="p1-conf">0%</span></div>
+              <div class="row"><span>Loss (Erro):</span><span class="val red" id="p1-loss">0.000</span></div>
+              <div class="row"><span>Épocas:</span><span class="val" id="p1-epoch">0/50</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fighter-box p2">
+          <select id="select-p2">
+            <option value="samuel">Samuel (12 Épocas - Iniciante)</option>
+            <option value="daiana" selected>Daiana (28 Épocas - Intermediária)</option>
+            <option value="heitor">Heitor (50 Épocas - Avançado)</option>
+            <option value="wesley">Wesley (85 Épocas - Mestre IA)</option>
+          </select>
+          <div class="face-preview-row">
+            <canvas id="face-p2" class="face-canvas" width="32" height="32"></canvas>
+            <div style="flex:1;">
+              <div class="row"><span>Confiança:</span><span class="val cyan" id="p2-conf">0%</span></div>
+              <div class="row"><span>Loss (Erro):</span><span class="val red" id="p2-loss">0.000</span></div>
+              <div class="row"><span>Épocas:</span><span class="val" id="p2-epoch">0/28</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="retrain" id="btn-retrain">🔄 Retreinar</button>
+        <button class="step-btn" id="btn-add-epochs">⚡ +20 Épocas (P1)</button>
+        <button class="yolo-btn" id="btn-toggle-yolo">🎯 YOLO: ON</button>
+        <button class="dataset-btn" id="btn-export-dataset">📥 Baixar Dataset</button>
+      </div>
+    </div>
+
+    <!-- RAIO-X DE PRÉ-PROCESSAMENTO E 2 CAMADAS OCULTAS -->
+    <div class="card">
+      <h2>
+        <span>2. Pré-processamento ➔ Input ➔ Layer 1 ➔ Layer 2 ➔ Softmax</span>
+        <button id="btn-toggle-norm" style="flex:0; padding:2px 6px; font-size:0.62rem; background:#334155;">Ver Bruto [0-255]</button>
+      </h2>
+      <div class="xray-grid">
+        <div class="matrix-box">
+          <div style="font-size:0.6rem; color:#94a3b8; text-align:center;" id="matrix-title">Tensor Norm [0.0-1.0]</div>
+          <div class="pixel-matrix" id="pixel-matrix-p1"></div>
+          <div style="font-size:0.56rem; color:#38bdf8; text-align:center;">Luminância ÷ 255.0</div>
+        </div>
+        <canvas id="nn-canvas" width="390" height="112"></canvas>
+      </div>
+    </div>
+
+    <!-- FILTRO DE CLASSE YOLO E IDENTIFICAÇÃO DO 1º OBJETO -->
+    <div class="card">
+      <h2>
+        <span>3. Filtrar Classe & Onde Encontrou o 1º Objeto</span>
+        <select id="select-yolo-filter" style="width:210px; padding:1px 4px; font-size:0.68rem;">
+          <option value="-1">Filtro: Todas as Classes</option>
+          <option value="0">Filtro: Classe 0 (Jogador 1)</option>
+          <option value="1">Filtro: Classe 1 (Jogador 2)</option>
+          <option value="2">Filtro: Classe 2 (Bomba)</option>
+          <option value="3">Filtro: Classe 3 (Fogo/Explosão)</option>
+        </select>
+      </h2>
+      <div class="yolo-box" id="yolo-labels-output">Iniciando varredura espacial...</div>
+    </div>
+
+    <!-- GRÁFICO DE CONVERGÊNCIA -->
+    <div class="card">
+      <h2>4. Curva de Validação (Queda da Loss vs Confiança) <span class="val cyan" id="m-main-thread">60 FPS</span></h2>
+      <canvas id="metrics-canvas" width="550" height="80"></canvas>
+      <div class="chart-legend">
+        <span style="color:#ef4444;">▬ P1 Loss</span>
+        <span style="color:#4ade80;">--- P1 Confiança</span>
+        <span style="color:#38bdf8;">▬ P2 Loss</span>
+        <span style="color:#facc15;">--- P2 Confiança</span>
+      </div>
+    </div>
+
+    <!-- LOGS SEM SPAM DE BOMBA -->
+    <div class="card" style="flex:1; display:flex; flex-direction:column;">
+      <h2>Logs de Validação (Sem Spam de Movimento/Bomba) <span id="m-worker-thread" style="color:#38bdf8;"></span></h2>
+      <div id="console-log">[SISTEMA] Inicializando auditoria limpa de pré-processamento, warmup e YOLO...</div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
