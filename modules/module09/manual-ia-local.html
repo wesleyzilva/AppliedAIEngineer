@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="C1 English learning and TPM delivery guide for Module 09: running local AI models with Ollama.">
+  <title>Module 09 | Run Local Models with Ollama</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: #101d2d;
+      --border: #29415b;
+      --text: #e5eef8;
+      --muted: #a9bbce;
+      --cyan: #67e8f9;
+      --green: #86efac;
+      --yellow: #fde68a;
+      --red: #fca5a5;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at top, #10243b 0, var(--bg) 48rem);
+      color: var(--text);
+      font: 16px/1.6 "Segoe UI", system-ui, sans-serif;
+    }
+    a { color: var(--cyan); }
+    button, input, select, textarea { font: inherit; }
+    .page { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 48px 0 28px; }
+    .eyebrow { color: var(--cyan); font-size: .78rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 8px 0 12px; font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.08; }
+    h2 { margin: 0 0 12px; font-size: clamp(1.3rem, 3vw, 1.8rem); line-height: 1.2; }
+    h3 { margin: 0 0 8px; font-size: 1.05rem; }
+    p { margin: 8px 0 14px; }
+    .lead { max-width: 820px; color: var(--muted); font-size: 1.12rem; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .pill { padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px; background: #10243a; color: #d7edff; font-size: .82rem; }
+    .layout { display: grid; grid-template-columns: 252px minmax(0, 1fr); gap: 24px; align-items: start; }
+    nav {
+      position: sticky;
+      top: 16px;
+      max-height: calc(100vh - 32px);
+      overflow: auto;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(16, 29, 45, .94);
+    }
+    nav strong { display: block; margin: 0 0 8px; color: var(--cyan); }
+    nav a { display: block; padding: 6px 4px; color: var(--muted); font-size: .86rem; text-decoration: none; }
+    nav a:hover, nav a:focus { color: white; }
+    main { min-width: 0; }
+    section {
+      margin: 0 0 18px;
+      padding: clamp(18px, 3vw, 28px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: linear-gradient(145deg, rgba(20, 36, 56, .96), rgba(13, 26, 42, .96));
+      box-shadow: 0 14px 40px rgba(0, 0, 0, .14);
+    }
+    .subtle { color: var(--muted); }
+    .callout { margin: 14px 0; padding: 12px 14px; border-left: 4px solid var(--cyan); border-radius: 6px; background: #0a2638; }
+    .callout.good { border-color: #4ade80; background: #0d2b24; }
+    .callout.warn { border-color: #fbbf24; background: #302614; }
+    .callout.danger { border-color: #fb7185; background: #311a24; }
+    .architecture { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; margin: 20px 0; }
+    .node { position: relative; min-height: 122px; padding: 14px 12px; border: 1px solid #34708d; border-radius: 10px; background: #0b2437; }
+    .node:not(:last-child)::after { content: "→"; position: absolute; z-index: 1; top: 38%; right: -14px; color: var(--cyan); font-size: 1.4rem; font-weight: 900; }
+    .node b { display: block; margin-bottom: 5px; color: var(--cyan); }
+    .node small { display: block; color: var(--muted); line-height: 1.4; }
+    .step { min-width: 0; margin: 18px 0; padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: rgba(5, 15, 27, .45); }
+    .step-header { display: flex; min-width: 0; gap: 12px; align-items: flex-start; }
+    .step-header > div { min-width: 0; overflow-wrap: anywhere; }
+    .number { display: grid; flex: 0 0 34px; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #075985; color: white; font-weight: 800; }
+    .checkline { display: flex; gap: 9px; align-items: flex-start; margin: 12px 0 0; color: var(--muted); }
+    .checkline input { flex: 0 0 auto; margin-top: 5px; accent-color: #22c55e; }
+    pre { max-width: 100%; overflow: auto; margin: 12px 0; padding: 14px; border: 1px solid #263d55; border-radius: 9px; background: #050b13; color: #d9f3ff; font: .86rem/1.5 Consolas, "Cascadia Code", monospace; white-space: pre; tab-size: 4; }
+    .copy, .reset, .small-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 11px;
+      border: 1px solid #28709a;
+      border-radius: 7px;
+      background: #0b3854;
+      color: #e0f2fe;
+      cursor: pointer;
+    }
+    .copy:hover, .small-button:hover { background: #105078; }
+    .copy-status { display: inline-block; min-height: 1.4em; margin-left: 8px; color: var(--green); font-size: .85rem; }
+    .progress-wrap { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 0 0 18px; color: var(--muted); font-size: .88rem; }
+    progress { width: min(330px, 50vw); height: 12px; accent-color: #22c55e; }
+    .reset { margin-left: auto; border-color: var(--border); background: #17283a; color: var(--muted); }
+    .two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .mini { padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: rgba(3, 10, 19, .38); }
+    table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 14px 0; }
+    th, td { padding: 10px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+    th { background: #12283e; color: #c9efff; }
+    td { color: var(--muted); }
+    code { color: #a5f3fc; font: .92em Consolas, monospace; }
+    p code { overflow-wrap: anywhere; }
+    details { margin: 10px 0; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: rgba(3, 10, 19, .32); }
+    summary { color: #d9f3ff; font-weight: 700; cursor: pointer; }
+    .tracker { display: block; max-width: 100%; overflow-x: auto; }
+    .tracker select, .tracker textarea { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 7px; background: #071421; color: var(--text); }
+    .tracker textarea { min-height: 58px; resize: vertical; }
+    .tracker td { min-width: 130px; }
+    .tracker td:first-child { min-width: 180px; }
+    .tracker-status { color: var(--cyan); font-size: .82rem; }
+    .glossary td:first-child { color: #d9f3ff; font-weight: 700; white-space: nowrap; }
+    .chat-window { display: flex; flex-direction: column; gap: 12px; min-height: 260px; max-height: 520px; overflow-y: auto; margin: 14px 0; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: #050b13; }
+    .chat-message { max-width: min(90%, 760px); padding: 10px 13px; border: 1px solid var(--border); border-radius: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .chat-message.user { align-self: flex-end; background: #0b3854; }
+    .chat-message.assistant { align-self: flex-start; background: #12283e; }
+    .chat-message.error { border-color: #fb7185; background: #311a24; }
+    .chat-message small { display: block; margin-top: 8px; color: var(--muted); }
+    .chat-form textarea { width: 100%; min-height: 82px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: #071421; color: var(--text); resize: vertical; }
+    .source-picker { margin: 12px 0; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
+    .source-picker legend { padding: 0 5px; color: #d9f3ff; font-weight: 700; }
+    .source-picker-list { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+    .source-picker-list label { display: flex; gap: 6px; align-items: center; color: var(--muted); overflow-wrap: anywhere; }
+    .source-picker-list input { accent-color: #22c55e; }
+    .chat-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+    .chat-controls label { display: grid; gap: 4px; color: var(--muted); font-size: .86rem; }
+    .chat-controls input, .chat-controls select { min-width: 0; padding: 7px; border: 1px solid var(--border); border-radius: 7px; background: #071421; color: var(--text); }
+    .chat-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .chat-actions button:disabled { opacity: .55; cursor: wait; }
+    .duration-summary { color: var(--cyan); font-variant-numeric: tabular-nums; }
+    kbd { padding: 2px 6px; border: 1px solid #52657a; border-radius: 4px; background: #17283a; }
+    footer { padding: 10px 0 40px; color: var(--muted); font-size: .86rem; }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      nav { position: static; max-height: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 12px; }
+      nav strong { grid-column: 1 / -1; }
+      .architecture { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .node:not(:last-child)::after { content: "↓"; top: auto; right: 12px; bottom: -19px; }
+    }
+    @media (max-width: 560px) {
+      .page { width: min(100% - 20px, 1180px); }
+      header { padding-top: 30px; }
+      .two-col, .architecture, nav { grid-template-columns: 1fr; }
+      .chat-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      nav strong { grid-column: auto; }
+      .node { min-height: auto; }
+      .node:not(:last-child)::after { content: "↓"; top: auto; right: 14px; bottom: -18px; }
+      progress { width: 42vw; }
+      .tracker table { font-size: .86rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="eyebrow">C1 English · Learning guide and TPM project tracker</div>
+      <h1>Module 09: Run Models Locally with Ollama</h1>
+      <p class="lead">A practical, delivery-oriented guide to running a local AI assistant on your Windows laptop. Learn each component hands-on while tracking scope, milestones, dependencies, risks, and acceptance evidence. USB portability is a later project phase.</p>
+      <div class="pill-row">
+        <span class="pill">Dell Inspiron 3583</span>
+        <span class="pill">16 GiB RAM</span>
+        <span class="pill">CPU-first deployment</span>
+        <span class="pill">Qwen 3.5 4B + Ollama</span>
+        <span class="pill">Python + SQLite + RAG</span>
+        <span class="pill">Phase 1: local Windows setup</span>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav aria-label="Manual contents">
+        <strong>Project guide</strong>
+        <a href="#charter">Project charter</a>
+        <a href="#tracker">TPM delivery tracker</a>
+        <a href="#architecture">Solution architecture</a>
+        <a href="#hardware">Hardware and constraints</a>
+        <a href="#runbook">Hands-on implementation</a>
+        <a href="#chat">Local integration chat</a>
+        <a href="#rag">How the current RAG works</a>
+        <a href="#validation">Validation and learning experiments</a>
+        <a href="#parameters">Parameters and call logs</a>
+        <a href="#risks">Risks and troubleshooting</a>
+        <a href="#glossary">Technical glossary</a>
+        <a href="#roadmap">Next increments</a>
+      </nav>
+
+      <main>
+        <div class="progress-wrap">
+          <label for="progress">Implementation checklist:</label>
+          <progress id="progress" max="8" value="0"></progress>
+          <span id="progress-label">0 of 8 complete</span>
+          <button class="reset" id="reset-progress" type="button">Reset checklist</button>
+        </div>
+
+        <section id="charter">
+          <div class="eyebrow">01 · Project charter</div>
+          <h2>Purpose, outcome, and boundaries</h2>
+          <p>Build and validate a personal AI assistant on the Windows laptop where it runs. For this first phase, Ollama and its models use their standard Windows installation and model store; the project, approved learning materials, and SQLite index remain in <code>E:\wesleyzilva\repo\AppliedAIEngineer\modules\module09</code>. The use cases are learning and work support across technical program management (TPM), full-stack development, and AI engineering.</p>
+          <div class="callout good"><b>Version 1 delivers local inference plus retrieval-augmented generation (RAG).</b> Adding documents supplies external knowledge at query time; it does not train or modify Qwen’s model weights.</div>
+          <div class="two-col">
+            <div class="mini"><h3>In scope for Phase 1</h3><p class="subtle">Install Ollama on Windows, run a local model, index authorized documents, inspect retrieved evidence, generate answers with source references, and validate the workflow on this laptop.</p></div>
+            <div class="mini"><h3>Deferred to later phases</h3><p class="subtle">USB portability and packaged runtimes, training a foundation model, fine-tuning, a remote service, multi-user access, image input in the assistant, and automatic execution of actions that modify data.</p></div>
+          </div>
+          <div class="callout warn">The current objective is local use on this Windows laptop, not a self-contained USB distribution. The standard Ollama installer changes this computer and stores models in the normal user model directory. We will plan a separate portability increment after the local workflow is proven.</div>
+        </section>
+
+        <section id="tracker">
+          <div class="eyebrow">02 · TPM delivery tracker</div>
+          <h2>Milestones, evidence, and status</h2>
+          <p class="subtle">Use the tracker to manage work as a TPM. Choose a status and record a short evidence note for each milestone. The tracker is saved in this browser’s local storage; it is not synchronized or committed to the repository.</p>
+          <table class="tracker">
+            <thead><tr><th>Milestone</th><th>Exit criteria / evidence</th><th>Status</th><th>Owner’s notes / blocker</th></tr></thead>
+            <tbody>
+              <tr data-milestone="scope"><td><b>M0 · Scope and baseline</b></td><td>Use cases, non-goals, target laptop, privacy boundaries, and success measures are agreed.</td><td><select aria-label="M0 status"><option>Not started</option><option>In progress</option><option>Blocked</option><option>Done</option></select></td><td><textarea aria-label="M0 notes" placeholder="Decision, owner, or evidence"></textarea></td></tr>
+              <tr data-milestone="runtime"><td><b>M1 · Local Ollama setup</b></td><td>Ollama is installed on Windows, the local service is available, and the CLI responds.</td><td><select aria-label="M1 status"><option>Not started</option><option>In progress</option><option>Blocked</option><option>Done</option></select></td><td><textarea aria-label="M1 notes" placeholder="Install version, service check"></textarea></td></tr>
+              <tr data-milestone="models"><td><b>M2 · Local models</b></td><td>Qwen chat and embedding models are downloaded to the default local store and pass smoke tests.</td><td><select aria-label="M2 status"><option>Not started</option><option>In progress</option><option>Blocked</option><option>Done</option></select></td><td><textarea aria-label="M2 notes" placeholder="Model tags, size, test result"></textarea></td></tr>
+              <tr data-milestone="rag"><td><b>M3 · RAG baseline</b></td><td>Authorized files are ingested; a query returns relevant chunks and traceable source paths.</td><td><select aria-label="M3 status"><option>Not started</option><option>In progress</option><option>Blocked</option><option>Done</option></select></td><td><textarea aria-label="M3 notes" placeholder="Ingested files, retrieval evidence"></textarea></td></tr>
+              <tr data-milestone="quality"><td><b>M4 · Quality and safety</b></td><td>Known-answer, paraphrase, and no-evidence cases are evaluated; private data is protected.</td><td><select aria-label="M4 status"><option>Not started</option><option>In progress</option><option>Blocked</option><option>Done</option></select></td><td><textarea aria-label="M4 notes" placeholder="Evaluation results or open risk"></textarea></td></tr>
+              <tr data-milestone="localAcceptance"><td><b>M5 · Local acceptance</b></td><td>End-to-end query returns a grounded answer and sources using the installed Ollama service on this laptop.</td><td><select aria-label="M5 status"><option>Not started</option><option>In progress</option><option>Blocked</option><option>Done</option></select></td><td><textarea aria-label="M5 notes" placeholder="Test date, latency, memory"></textarea></td></tr>
+            </tbody>
+          </table>
+          <div class="two-col">
+            <div class="mini"><h3>Suggested project health signals</h3><p class="subtle">Milestones accepted / planned; unresolved blockers; retrieval relevance on a fixed test set; citation traceability; response latency; peak system memory; local end-to-end pass/fail.</p></div>
+            <div class="mini"><h3>Weekly TPM update</h3><p class="subtle"><b>Accomplished:</b> … <b>Next:</b> … <b>Risks:</b> … <b>Decisions needed:</b> … <b>Evidence:</b> link to test output, model tag, or commit.</p></div>
+          </div>
+          <div class="callout">A milestone is not “done” because a command was attempted. Mark it done only when its exit criteria have observable evidence.</div>
+        </section>
+
+        <section id="architecture">
+          <div class="eyebrow">03 · Solution architecture</div>
+          <h2>What happens when you ask a question?</h2>
+          <p class="subtle">Each component has a distinct responsibility. This separation helps you identify whether a defect belongs to document preparation, retrieval, model inference, or response composition.</p>
+          <div class="architecture" aria-label="Local RAG request flow">
+            <div class="node"><b>Your documents</b><small>Authorized Markdown, text, and CSV files in <code>data/docs/</code>.</small></div>
+            <div class="node"><b>Python ingestion</b><small>Splits content into chunks and requests embeddings from Ollama.</small></div>
+            <div class="node"><b>SQLite index</b><small>Stores text chunks, source paths, titles, and serialized vectors.</small></div>
+            <div class="node"><b>RAG retrieval</b><small>Ranks candidate chunks against the user’s question.</small></div>
+            <div class="node"><b>Qwen response</b><small>Receives the question and selected context, then drafts an answer.</small></div>
+          </div>
+          <div class="two-col">
+            <div class="mini"><h3>Stored on this laptop for Phase 1</h3><p class="subtle">Application code is in the repository; Ollama and models use their standard Windows installation and user model store; documents and the SQLite index stay in this module.</p></div>
+            <div class="mini"><h3>Executed locally</h3><p class="subtle">Ollama loads the model into system memory and computes embeddings and responses. Plan for CPU execution; do not assume the integrated GPU will accelerate inference.</p></div>
+          </div>
+        </section>
+
+        <section id="hardware">
+          <div class="eyebrow">04 · Target platform</div>
+          <h2>Hardware and operational constraints</h2>
+          <table>
+            <thead><tr><th>Component</th><th>Known baseline</th><th>Project implication</th></tr></thead>
+            <tbody>
+              <tr><td>System</td><td>Dell Inspiron 3583</td><td>Validate the actual workload on this laptop rather than relying on generic benchmark claims.</td></tr>
+              <tr><td>Memory</td><td>17,034,338,304 bytes, approximately 15.9 GiB.</td><td>A reasonable starting point for a quantized 4B model, while preserving headroom for Windows and other applications.</td></tr>
+              <tr><td>Graphics</td><td>Integrated Intel UHD Graphics 620; Windows reported 1 GiB of adapter memory.</td><td>That figure is not evidence of 1 GiB dedicated VRAM or Ollama GPU support. Treat CPU inference as the baseline.</td></tr>
+              <tr><td>Processor</td><td>Intel Core i5-8265U at 1.60 GHz; 4 cores and 8 logical processors.</td><td>A reasonable CPU baseline for a small quantized model, but response speed still needs to be measured with the target workload.</td></tr>
+              <tr><td>USB drive (later phase)</td><td>Capacity is not yet a Phase 1 constraint.</td><td>Measure actual runtime and model sizes before defining the portable-drive capacity.</td></tr>
+            </tbody>
+          </table>
+          <p>Capture the processor baseline in PowerShell:</p>
+          <pre><code>Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors</code></pre>
+          <button class="copy" type="button">Copy command</button><span class="copy-status" aria-live="polite"></span>
+          <p class="subtle">The project defaults to <code>qwen3.5:4b</code> for chat and <code>nomic-embed-text</code> for embeddings. The Ollama Q4_K_M chat variant is approximately 3.3 GB. Record the exact model tag and quantization in test evidence.</p>
+        </section>
+
+        <section id="runbook">
+          <div class="eyebrow">05 · Implementation runbook</div>
+          <h2>Build the first working increment</h2>
+          <p class="subtle">For this phase, install and validate Ollama on your laptop. Keep project files, documents, and the SQLite index in <code>E:\wesleyzilva\repo\AppliedAIEngineer\modules\module09</code>. Do not copy runtimes or model files to the USB drive yet; portability is a later increment.</p>
+
+          <article class="step">
+            <div class="step-header"><span class="number">1</span><div><h3>Open the Module 09 project folder</h3><p>All project commands should run from this directory. The current module path is shown below.</p></div></div>
+            <pre><code>Set-Location "E:\wesleyzilva\repo\AppliedAIEngineer\modules\module09"
+Get-Location
+Get-ChildItem .\data\docs -Recurse -File</code></pre>
+            <button class="copy" type="button">Copy commands</button><span class="copy-status" aria-live="polite"></span>
+            <p><b>Expected result:</b> the current directory ends in <code>modules\module09</code>, and the sample <code>perfil-e-objetivos.md</code> appears in the listing.</p>
+            <label class="checkline"><input class="task-check" type="checkbox" data-task="1"> I confirmed the Module 09 path and located the sample learning document.</label>
+          </article>
+
+          <article class="step">
+            <div class="step-header"><span class="number">2</span><div><h3>Install Ollama on Windows for local use</h3><p>This is the normal Windows installation for the current phase. It installs Ollama on the laptop, not in the project or USB folder. Close the setup when it finishes; Ollama normally runs as a background application.</p></div></div>
+            <pre><code>irm https://ollama.com/install.ps1 | iex</code></pre>
+            <button class="copy" type="button">Copy commands</button><span class="copy-status" aria-live="polite"></span>
+            <p><b>Important:</b> the output should indicate that installation completed, not only that the download reached 100%. If the command returns after showing only “Downloading Ollama for Windows... 100%”, check for the downloaded setup file:</p>
+            <pre><code>$setup = Join-Path $env:TEMP "OllamaSetup.exe"
+Test-Path $setup</code></pre>
+            <p>If it returns <code>True</code>, verify the file’s digital signature in <kbd>Right-click</kbd> → <kbd>Properties</kbd> → <kbd>Digital Signatures</kbd>. Continue only if Windows reports a valid signature from Ollama. Then launch the installer:</p>
+            <pre><code>Start-Process -FilePath $setup -Wait</code></pre>
+            <p>After setup finishes, open Ollama from the Start menu and open a fresh PowerShell window. Verify that the command and local service are available:</p>
+$ollama = "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"
+if (-not (Test-Path $ollama)) { throw "Ollama executable not found: $ollama" }
+& $ollama --version
+Invoke-RestMethod http://localhost:11434/api/tags</code></pre>
+            <button class="copy" type="button">Copy commands</button><span class="copy-status" aria-live="polite"></span>
+            <p><b>Expected result:</b> the version is printed and the API returns JSON, even if the model list is initially empty. The direct executable path works if the installer did not update this PowerShell session’s <code>PATH</code>. If the executable is missing, complete the setup; if the API is unavailable, open Ollama from the Start menu and retry. Do not start a second server while the desktop service is running.</p>
+            <label class="checkline"><input class="task-check" type="checkbox" data-task="2"> Ollama is installed and the local API responds on this laptop.</label>
+          </article>
+
+          <article class="step">
+            <div class="step-header"><span class="number">3</span><div><h3>Download and test the local models</h3><p>Model files are stored in Ollama’s default user model directory on this laptop. Internet access is required for the initial download. These files are not inside the repository or USB drive during this phase.</p></div></div>
+            <pre><code>$ollama = "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"
+& $ollama pull qwen3.5:4b
+& $ollama pull nomic-embed-text
+& $ollama list</code></pre>
+            <button class="copy" type="button">Copy commands</button><span class="copy-status" aria-live="polite"></span>
+            <p><b>Qwen</b> generates responses. <b>nomic-embed-text</b> maps questions and document chunks to vectors for retrieval. These are separate models because they perform different tasks.</p>
+            <p class="subtle">Confirm that both tags appear in <code>ollama list</code>. Ollama normally runs its local service in the background, so you do not need to start <code>ollama serve</code> manually. If <code>ollama</code> is not recognized as a command, use the executable path shown above.</p>
+            <p>Test text generation and embeddings directly in PowerShell:</p>
+            <pre><code>&amp; $ollama run qwen3.5:4b "Reply with: local chat model is working."
+$body = @{ model = "nomic-embed-text"; input = "Local embedding smoke test" } | ConvertTo-Json
+$embedding = Invoke-RestMethod -Uri "http://localhost:11434/api/embed" -Method Post -ContentType "application/json" -Body $body
+if (-not $embedding.embeddings -or $embedding.embeddings.Count -eq 0) { throw "Embedding test failed." }
+"Embedding dimensions: $($embedding.embeddings[0].Count)"</code></pre>
+            <button class="copy" type="button">Copy commands</button><span class="copy-status" aria-live="polite"></span>
+            <p><b>Expected result:</b> Qwen prints the requested short confirmation and the embedding check prints a non-zero dimension count. These checks confirm actual local inference and embedding, not merely that the model files exist.</p>
+            <label class="checkline"><input class="task-check" type="checkbox" data-task="3"> Both model tags are listed, and chat and embedding smoke tests pass.</label>
+          </article>
+
+          <article class="step">
+            <div class="step-header"><span class="number">4</span><div><h3>Verify local Python and curate a small document set</h3><p>Use your installed Python interpreter for this phase. Add approved materials under <code>data\docs\</code>; start with a small, well-structured corpus.</p></div></div>
+            <p>The current indexer supports <code>.md</code>, <code>.txt</code>, and <code>.csv</code> files. A practical starting structure is:</p>
+            <pre><code>data\docs\
+  perfil-e-objetivos.md
+  perfil-profissional.md
+  TPM\
+    glossary.md
+    risks-and-dependencies.md
+  fullstack\
+    architecture.md
+  AI\
+    rag-and-embeddings.md</code></pre>
+            <p class="subtle">Review data sensitivity, privacy, and usage rights before copying files. The SQLite index contains extracted document content and must be protected accordingly.</p>
+            <p>In PowerShell, verify that Python and pip are available and that the sample document is present:</p>
+            <pre><code>python --version
+python -m pip --version
+Get-ChildItem .\data\docs -Recurse -File</code></pre>
+            <button class="copy" type="button">Copy commands</button><span class="copy-status" aria-live="polite"></span>
+            <p><b>Expected result:</b> Python and pip versions are printed and both profile documents appear in the document listing. Complete <code>perfil-profissional.md</code> with verified experience and project evidence; bracketed prompts are not facts. If the Python command is unavailable, use the interpreter already configured in VS Code.</p>
+            <label class="checkline"><input class="task-check" type="checkbox" data-task="4"> Python is available and the initial document set is approved.</label>
+          </article>
+
+          <article class="step">
+            <div class="step-header"><span class="number">5</span><div><h3>Validate ingestion with the Python CLI</h3><p>Activate the repository <code>.venv</code>, install Module 09 in editable mode once, then run the CLI from the Module 09 directory. Ollama’s Windows background service should already be running.</p></div></div>
+            <pre><code>Set-Location "E:\wesleyzilva\repo\AppliedAIEngineer\modules\module09"
+python -m pip install -e .
+python -m tpm_ai.cli ingest</code></pre>
+            <button class="copy" type="button">Copy command</button><span class="copy-status" aria-live="polite"></span>
+            <p><b>Expected result:</b> JSON reports <code>"status": "ok"</code> and <code>"ingested_chunks"</code> greater than zero. The SQLite database is created at <code>data\local_ai_index.sqlite3</code>. The editable install is needed once per Python environment; continue using the same activated <code>.venv</code> for the following commands.</p>
+            <label class="checkline"><input class="task-check" type="checkbox" data-task="5"> Ingestion completed and reported a non-zero chunk count.</label>
+          </article>
+
+          <article class="step">
+            <div class="step-header"><span class="number">6</span><div><h3>Inspect retrieval before evaluating generation</h3><p>The <code>ask</code> command exposes the retrieved evidence without asking the model to draft a final answer. This is the most useful first diagnostic for RAG quality.</p></div></div>
+            <pre><code>Set-Location "E:\wesleyzilva\repo\AppliedAIEngineer\modules\module09"
+python -m tpm_ai.cli ask "Quais são meus objetivos de aprendizagem?"</code></pre>
+            <button class="copy" type="button">Copy command</button><span class="copy-status" aria-live="polite"></span>
+            <p><b>Expected result:</b> JSON includes a non-empty <code>results</code> array with relevant text and a source path containing <code>perfil-e-objetivos.md</code>. This command tests retrieval; it does not ask Qwen to write an answer. If results are empty or irrelevant, check document ingestion before continuing.</p>
+            <label class="checkline"><input class="task-check" type="checkbox" data-task="6"> I inspected the retrieved chunks and found useful supporting evidence.</label>
+          </article>
+
+          <article class="step">
+            <div class="step-header"><span class="number">7</span><div><h3>Generate a locally grounded answer</h3><p>The assistant combines the question with retrieved chunks and sends that context to the local chat model.</p></div></div>
+            <pre><code>Set-Location "E:\wesleyzilva\repo\AppliedAIEngineer\modules\module09"
+python -m tpm_ai.cli agent "Com base nos meus arquivos, liste apenas os fatos confirmados sobre meu perfil profissional e o que ainda preciso preencher."</code></pre>
+            <button class="copy" type="button">Copy command</button><span class="copy-status" aria-live="polite"></span>
+            <p><b>Expected result:</b> JSON contains a non-empty <code>answer</code> and a <code>sources</code> array that includes the professional profile document. Inspect the cited paths and verify the claims against the original files: fluent wording is not evidence of correctness, and answer quality depends on retrieval quality. The local client disables extended reasoning and caps each answer at 128 tokens to keep CPU responses more practical; the first model load can still take time, and requests may take up to 120 seconds. The existing index is reused; rerun <code>ingest</code> after changing documents.</p>
+            <p class="subtle">For a one-off conversation with the model without document retrieval, run <code>ollama run qwen3.5:4b</code>. Use the Python <code>agent</code> command when you want answers grounded in files under <code>data\docs\</code>.</p>
+            <label class="checkline"><input class="task-check" type="checkbox" data-task="7"> The answer was generated locally and I verified its cited source files.</label>
+          </article>
+
+          <article class="step">
+            <div class="step-header"><span class="number">8</span><div><h3>Run the local end-to-end acceptance test</h3><p>Confirm that Ollama is running in the Windows background and execute the complete workflow from the Module 09 project directory:</p></div></div>
+            <pre><code>Set-Location "E:\wesleyzilva\repo\AppliedAIEngineer\modules\module09"
+python -m tpm_ai.cli agent "Resuma o documento de TPM e cite a fonte."</code></pre>
+            <button class="copy" type="button">Copy command</button><span class="copy-status" aria-live="polite"></span>
+            <p><b>Expected result:</b> JSON contains a grounded <code>answer</code> and a <code>sources</code> array with the expected document path. Record response latency, approximate system memory, model tag, and pass/fail result.</p>
+            <div class="callout warn">USB packaging and offline-from-USB validation are deferred. The current model files live in Ollama’s standard Windows user store; do not copy the repository folder and assume it contains them. We will plan a dedicated portability phase after local acceptance.</div>
+            <label class="checkline"><input class="task-check" type="checkbox" data-task="8"> The end-to-end query passed locally and returned a verifiable source.</label>
+          </article>
+        </section>
+
+        <section id="chat">
+          <div class="eyebrow">06 · Local integration test</div>
+          <h2>Chat with your local assistant</h2>
+          <p>Install Module 09 into the repository <code>.venv</code> in editable mode once. The service serves this HTML and connects the chat to the same local RAG, Ollama model, and call logs used by the CLI; it listens only on this computer (<code>127.0.0.1</code>).</p>
+          <pre><code>Set-Location "E:\wesleyzilva\repo\AppliedAIEngineer"
+.\.venv\Scripts\Activate.ps1
+Set-Location .\modules\module09
+python -m pip install -e .</code></pre>
+          <p>In each new PowerShell window, activate the same <code>.venv</code> and start the service:</p>
+          <pre><code>Set-Location "E:\wesleyzilva\repo\AppliedAIEngineer"
+.\.venv\Scripts\Activate.ps1
+Set-Location .\modules\module09
+python -m tpm_ai.cli web --port 8766</code></pre>
+          <p>Run the install command once with your repository <code>.venv</code> activated. After that, open PowerShell in <code>module09</code>, activate the same <code>.venv</code> if needed, and run only <code>python -m tpm_ai.cli web --port 8766</code>. Keep that terminal open and navigate to <code>http://127.0.0.1:8766/</code>. Opening this HTML directly as a <code>file://</code> page does not enable its local chat integration.</p>
+          <div id="chat-status" class="callout" role="status" aria-live="polite">Checking the local chat service…</div>
+          <div id="chat-window" class="chat-window" role="log" aria-live="polite" aria-label="Local assistant conversation"></div>
+          <form id="chat-form" class="chat-form">
+            <label for="chat-question"><b>Your message</b></label>
+            <textarea id="chat-question" maxlength="8000" required placeholder="Ask a question. Example: Help me create a learning plan from my local documents."></textarea>
+            <fieldset class="source-picker">
+              <legend>Documents for context</legend>
+              <p class="subtle">Select one or more files to limit retrieval. Leave all unchecked to search every indexed document.</p>
+              <div id="chat-source-list" class="source-picker-list" aria-live="polite">Loading indexed documents…</div>
+            </fieldset>
+            <div class="chat-controls">
+              <label>Chat model
+                <input id="chat-model" value="qwen3.5:4b" maxlength="200">
+              </label>
+              <label>Retrieved chunks (RAG top-k)
+                <input id="chat-top-k" type="number" min="1" max="10" value="2">
+              </label>
+              <label>Temperature
+                <input id="chat-temperature" type="number" min="0" max="2" step="0.1" value="0.2">
+              </label>
+              <label>Maximum output tokens
+                <input id="chat-num-predict" type="number" min="1" max="2048" value="128">
+              </label>
+              <label>Random seed (optional)
+                <input id="chat-seed" type="number" placeholder="Leave empty for default">
+              </label>
+              <label>Thinking mode
+                <select id="chat-think"><option value="false">Off</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+              </label>
+            </div>
+            <div class="chat-actions">
+              <button id="chat-send" class="small-button" type="submit">Send to local AI</button>
+              <button id="chat-clear" class="reset" type="button">Clear conversation</button>
+              <span id="chat-duration" class="duration-summary" aria-live="polite"></span>
+            </div>
+          </form>
+          <p class="subtle">The browser retains this conversation only in the open page. Chat text is sent to the local Python service and Ollama on this computer; it is not included in the telemetry log. The last four turns may be sent as conversational context. The app logs model calls and timings without message text. Add Markdown, text, or CSV files under <code>data\docs\</code> and run <code>python -m tpm_ai.cli ingest</code> before selecting them.</p>
+          <div class="callout warn">The interactive chat requires the local web command above. The regular <code>agent</code> command and <code>logs</code> command continue to work directly in PowerShell.</div>
+        </section>
+
+        <section id="rag">
+          <div class="eyebrow">07 · Implementation walkthrough</div>
+          <h2>How the current RAG pipeline works</h2>
+          <ol>
+            <li><b>Ingestion:</b> the indexer discovers Markdown, text, and CSV files beneath <code>data/docs/</code>.</li>
+            <li><b>Chunking:</b> paragraphs are grouped into chunks of roughly 600 characters.</li>
+            <li><b>Embedding:</b> Ollama is asked to encode each chunk with <code>nomic-embed-text</code>.</li>
+            <li><b>Persistence:</b> SQLite stores source path, title, text, chunk position, and a serialized embedding.</li>
+            <li><b>Retrieval:</b> lexical term counts and cosine similarity are combined to rank candidate chunks; the highest-ranked results are returned.</li>
+            <li><b>Generation:</b> the assistant sends the question and selected context to Qwen, then returns an answer and source metadata.</li>
+          </ol>
+          <div class="callout warn"><b>Known implementation limitation:</b> lexical matching carries substantial weight even though embeddings are stored. When Ollama is unavailable, the fallback embeddings are deterministic placeholders, not meaningful semantic vectors. Keyword search may still produce results, but this is not equivalent to genuine semantic retrieval. If Ollama is unavailable for generation, the application reports the failure rather than fabricating a model answer.</div>
+          <div class="callout good"><b>Choose context sources:</b> in the chat, select one or more indexed files to restrict retrieval to those documents. With no files selected, retrieval searches the complete index. The CLI supports the same filter with repeatable <code>--source</code> options, for example <code>python -m tpm_ai.cli agent "Refine meu resumo profissional" --source docs\perfil-profissional.md</code>. Add or edit Markdown, text, or CSV files under <code>data\docs\</code>, then run <code>python -m tpm_ai.cli ingest</code> to refresh the index and source list.</div>
+          <div class="two-col">
+            <div class="mini"><h3>RAG is not fine-tuning</h3><p class="subtle">RAG retrieves external text at query time. Fine-tuning changes model weights. This increment implements RAG; it does not train Qwen.</p></div>
+            <div class="mini"><h3>RAG does not guarantee truth</h3><p class="subtle">Evaluate source coverage, retrieval relevance, and questions with no supporting evidence. A model should acknowledge gaps instead of presenting unsupported claims as facts.</p></div>
+          </div>
+        </section>
+
+        <section id="validation">
+          <div class="eyebrow">08 · Learning and validation</div>
+          <h2>Experiments that produce useful project evidence</h2>
+          <div class="step">
+            <h3>Experiment A · Does retrieval find the right evidence?</h3>
+            <ol>
+              <li>Create a small file containing a specific, non-sensitive test fact.</li>
+              <li>Ingest it, then use <code>ask</code> with a question whose answer appears in that file.</li>
+              <li>Repeat the query using a synonym or paraphrase and compare the retrieved chunks.</li>
+              <li>Ask a question not covered by the corpus and check whether the assistant acknowledges the evidence gap.</li>
+            </ol>
+          </div>
+          <div class="step">
+            <h3>Experiment B · Benchmark before changing models</h3>
+            <p>Use a fixed set of questions. For each run, capture the model tag, answer latency, approximate RAM usage, retrieval relevance, source traceability, and factual correctness. Change one variable at a time so results remain interpretable.</p>
+          </div>
+          <div class="step">
+            <h3>Experiment C · Trace behavior to source code</h3>
+            <p>Inspect <code>src/tpm_ai/rag.py</code> for chunking, ingestion, and scoring; <code>agent.py</code> for context assembly and citations; <code>llm.py</code> for local API calls; and <code>cli.py</code> for user-facing commands.</p>
+          </div>
+          <div class="step">
+            <h3>Experiment D · Run the development test suite</h3>
+            <p>From the module root, use a development Python environment with <code>pytest</code> installed. These tests do not require Ollama or downloaded models; keep development tools in your development Python environment.</p>
+            <pre><code>python -m pytest -q</code></pre>
+            <button class="copy" type="button">Copy commands</button><span class="copy-status" aria-live="polite"></span>
+            <p><b>Expected result:</b> the current suite reports <code>15 passed</code>. If pytest is not installed in the development environment, install it there with <code>python -m pip install pytest</code>, then rerun the test command.</p>
+          </div>
+          <div class="callout good"><b>Definition of done for the learning objective:</b> you can explain the request flow, distinguish retrieval from generation, run the workflow locally, inspect the evidence, and describe at least one limitation of the current implementation.</div>
+        </section>
+
+        <section id="parameters">
+          <div class="eyebrow">09 · Configuration and observability lab</div>
+          <h2>Learn model parameters and measure each call</h2>
+          <p>The project uses Ollama's local API. A request has <b>API-level fields</b> such as model and thinking mode; the <code>options</code> object contains sampler and runtime parameters. There is no single option set guaranteed across every Ollama version, model, and runner; the catalog below separates documented common options from API fields not wired into this CLI. The CLI logs every embedding and generation request to <code>data\logs\ollama-calls.jsonl</code>. Logs are local, append-only JSON Lines and are excluded from Git. See the official <a href="https://docs.ollama.com/modelfile">Modelfile reference</a> and <a href="https://docs.ollama.com/api/generate">Generate API reference</a>.</p>
+          <div class="callout warn"><b>Privacy:</b> logs do not store prompt text, retrieved document contents, or generated answers. They do store model names, parameter values, character counts, timing, token counts, and status. Treat even this operational metadata as local project data.</div>
+
+          <div class="step">
+            <h3>Run a controlled experiment</h3>
+            <p>Start from the Module 09 directory. Keep the question and retrieved context fixed, change one setting at a time, and record a quality score as well as latency. The second command changes only temperature:</p>
+            <pre><code>Set-Location "E:\wesleyzilva\repo\AppliedAIEngineer\modules\module09"
+$env:TPM_GENERATION_OPTIONS = (@{ temperature = 0.2; num_predict = 128; seed = 7 } | ConvertTo-Json -Compress)
+python -m tpm_ai.cli agent "Quais são meus objetivos de aprendizagem?" --top-k 2 --model qwen3.5:4b
+$env:TPM_GENERATION_OPTIONS = (@{ temperature = 0.7; num_predict = 128; seed = 7 } | ConvertTo-Json -Compress)
+python -m tpm_ai.cli agent "Quais são meus objetivos de aprendizagem?" --top-k 2
+Get-Content .\data\logs\ollama-calls.jsonl -Tail 10</code></pre>
+            <button class="copy" type="button">Copy commands</button><span class="copy-status" aria-live="polite"></span>
+            <p>The default generation options are <code>temperature=0.2</code> and <code>num_predict=128</code>; JSON values override these defaults. On Windows PowerShell, set <code>TPM_GENERATION_OPTIONS</code> with <code>ConvertTo-Json</code> to preserve the JSON quotes when passing options to Python. Use <code>--model</code> to choose an installed chat model. Retrieval <code>--top-k</code> is separate from the sampler's <code>top_k</code>, so set <code>top_k</code> inside <code>TPM_GENERATION_OPTIONS</code> for token sampling.</p>
+          </div>
+
+          <h3>Generation parameters you can experiment with</h3>
+          <p class="subtle">These are common Ollama Modelfile/runner options. Support and defaults can vary by Ollama version, model, and inference backend. Start with sampling and context controls; hardware/runtime switches can increase memory use or reduce performance.</p>
+          <table>
+            <thead><tr><th>Option</th><th>What it changes</th><th>Good experiment</th><th>Trade-off / caution</th></tr></thead>
+            <tbody>
+              <tr><td><code>temperature</code></td><td>Randomness of token selection.</td><td>Compare 0.2, 0.7, and 1.0.</td><td>Higher is more varied, not inherently more correct.</td></tr>
+              <tr><td><code>num_predict</code></td><td>Maximum tokens generated; <code>-1</code> can mean unlimited.</td><td>Try 64, 128, 256.</td><td>Higher caps can increase latency. Current default: 128.</td></tr>
+              <tr><td><code>num_ctx</code></td><td>Context window for input and output tokens.</td><td>Compare 2048 and 4096 after checking model support.</td><td>Larger context can consume more RAM/VRAM; it does not guarantee better retrieval.</td></tr>
+              <tr><td><code>top_k</code></td><td>Keep the K highest-probability next tokens.</td><td>Compare 20, 40, and 80.</td><td>Smaller values are more restrictive; this is not the RAG <code>--top-k</code>.</td></tr>
+              <tr><td><code>top_p</code></td><td>Nucleus sampling threshold.</td><td>Try 0.8, 0.9, 0.95.</td><td>Usually tune with temperature, not in isolation from it.</td></tr>
+              <tr><td><code>min_p</code></td><td>Filters tokens below a fraction of the highest token probability.</td><td>Try 0.0, then a small value such as 0.05 if supported.</td><td>May be unavailable in older Ollama builds.</td></tr>
+              <tr><td><code>seed</code></td><td>Random seed for repeatability.</td><td>Fix the seed while comparing a single setting.</td><td>Same seed does not guarantee identical results across model/runtime versions.</td></tr>
+              <tr><td><code>repeat_last_n</code></td><td>How far back repetition checks inspect.</td><td>Compare 32, 64, and 0 (disabled).</td><td>Use with repeat penalty; behavior is model-specific.</td></tr>
+              <tr><td><code>repeat_penalty</code></td><td>Penalty against repeated tokens.</td><td>Try 1.0, 1.05, 1.1.</td><td>Too high can make wording awkward or omit needed terms.</td></tr>
+              <tr><td><code>stop</code></td><td>One or more strings that stop generation.</td><td>Use only when the expected output format has a safe delimiter.</td><td>A matching substring can truncate a valid answer.</td></tr>
+              <tr><td><code>mirostat</code></td><td>Enables Mirostat sampling (commonly 0 off, 1/2 modes).</td><td>Compare disabled and mode 2.</td><td>Do not tune alongside every other sampler at once.</td></tr>
+              <tr><td><code>mirostat_tau</code>, <code>mirostat_eta</code></td><td>Target entropy and learning rate for Mirostat.</td><td>Change only when Mirostat is enabled.</td><td>Use the backend's documented ranges.</td></tr>
+              <tr><td><code>tfs_z</code>, <code>typical_p</code></td><td>Alternative token-filtering strategies.</td><td>Keep defaults first; benchmark separately if supported.</td><td>Some filters overlap with top-k/top-p.</td></tr>
+              <tr><td><code>presence_penalty</code>, <code>frequency_penalty</code></td><td>Discourage token/topic reuse.</td><td>Try small positive values only for repetitive tasks.</td><td>May cause unnatural phrasing or missing relevant terms.</td></tr>
+              <tr><td><code>penalize_newline</code></td><td>Whether newline tokens are penalized.</td><td>Compare true/false for structured text.</td><td>Model/backend support varies.</td></tr>
+              <tr><td><code>num_keep</code></td><td>Number of prompt tokens retained during context shifting.</td><td>Leave default unless testing long prompts.</td><td>Advanced context-shift behavior.</td></tr>
+              <tr><td><code>num_batch</code></td><td>Prompt-processing batch size.</td><td>Benchmark cautiously on the target machine.</td><td>Higher values may require more memory.</td></tr>
+              <tr><td><code>num_thread</code></td><td>CPU threads used for inference.</td><td>Compare a few values up to the available logical processors.</td><td>More threads are not always faster; leave CPU headroom.</td></tr>
+              <tr><td><code>num_gpu</code>, <code>main_gpu</code></td><td>GPU layer/device selection on supported backends.</td><td>Use only when Ollama reports usable GPU acceleration.</td><td>This laptop's baseline is CPU; do not assume Intel UHD acceleration.</td></tr>
+              <tr><td><code>low_vram</code>, <code>use_mmap</code>, <code>use_mlock</code>, <code>numa</code></td><td>Memory mapping and platform/runtime behavior.</td><td>Keep defaults unless diagnosing a measured memory issue.</td><td>Platform-specific and may be unsupported or counterproductive.</td></tr>
+              <tr><td><code>draft_num_predict</code></td><td>Speculative draft-token limit when compatible draft support exists.</td><td>Leave unset unless using a compatible speculative model.</td><td>Not a general speed control for every model.</td></tr>
+            </tbody>
+          </table>
+
+          <details>
+            <summary>Other Generate API fields (not all are exposed by this CLI)</summary>
+            <p><code>model</code>, <code>prompt</code>, <code>system</code>, <code>suffix</code>, <code>images</code>, <code>format</code> (JSON or schema), <code>stream</code>, <code>think</code>, <code>raw</code>, <code>keep_alive</code>, <code>options</code>, <code>logprobs</code>, and <code>top_logprobs</code>. This project currently fixes the prompt/system construction and disables streaming so it can parse one JSON response. The CLI exposes <code>think</code> plus the generation <code>options</code> object; JSON/schema output, image input, streaming, and token log-probabilities are not wired into the assistant yet. API fields are not interchangeable with model options.</p>
+          </details>
+
+          <h3>Inspect the local call log</h3>
+          <p>Each JSON line records a timestamp, operation, model, status, wall-clock duration, input lengths, selected options, and (when returned by Ollama) load/prompt/evaluation durations and token counts. The HTML dashboard loads the latest calls automatically when served through the local web command. Durations are shown in milliseconds, seconds, and minutes. Generation speed is approximately <code>eval_count / (eval_duration / 1,000,000,000)</code> tokens/second.</p>
+          <div class="two-col">
+            <div class="mini"><b>Automatic local log source</b><p class="subtle">The dashboard reads the last 500 events from <code>data\logs\ollama-calls.jsonl</code> through the local web service. It refreshes every five seconds, including calls made from another PowerShell window. No file selection or upload is needed.</p></div>
+            <div class="mini" id="call-log-summary" aria-live="polite"><b>Summary</b><p class="subtle">Start the local web service to load the call log and calculate generation count, average/median latency, errors, and tokens/second.</p></div>
+          </div>
+          <table>
+            <thead><tr><th>Timestamp</th><th>Model / status</th><th>Wall (ms / s / min)</th><th>Load (ms / s / min)</th><th>Prompt (ms / s / min)</th><th>Generation (ms / s / min)</th><th>Output tokens</th><th>Tokens/s</th><th>Options</th></tr></thead>
+            <tbody id="call-log-rows"><tr><td colspan="6">No log loaded.</td></tr></tbody>
+          </table>
+          <div class="callout good"><b>How to improve systematically:</b> 1) freeze a small set of questions and reference answers; 2) inspect retrieved sources with <code>ask</code>; 3) adjust one parameter; 4) compare answer correctness, source coverage, latency, and memory; 5) keep the change only when the measured trade-off is better. If retrieval is wrong, tune chunking/ranking or documents before changing the language model.</div>
+          <div class="step">
+            <h3>Where to run commands and how to compare runs</h3>
+            <p>Run Python CLI commands in <b>PowerShell</b>, from <code>E:\wesleyzilva\repo\AppliedAIEngineer\modules\module09</code>, using the same <code>.venv</code> where you installed the package. Start the web server in its own PowerShell window and keep it open:</p>
+            <pre><code>Set-Location "E:\wesleyzilva\repo\AppliedAIEngineer\modules\module09"
+python -m tpm_ai.cli web --port 8766</code></pre>
+            <p>Open <code>http://127.0.0.1:8766/</code>. In a second PowerShell window, use these commands to run the same question with two temperatures:</p>
+            <pre><code>Set-Location "E:\wesleyzilva\repo\AppliedAIEngineer\modules\module09"
+$env:TPM_GENERATION_OPTIONS = (@{ temperature = 0.2; num_predict = 128; seed = 7 } | ConvertTo-Json -Compress)
+python -m tpm_ai.cli agent "Como posso organizar meu portfólio profissional?" --top-k 2
+$env:TPM_GENERATION_OPTIONS = (@{ temperature = 0.7; num_predict = 128; seed = 7 } | ConvertTo-Json -Compress)
+python -m tpm_ai.cli agent "Como posso organizar meu portfólio profissional?" --top-k 2
+Remove-Item Env:TPM_GENERATION_OPTIONS
+python -m tpm_ai.cli logs --tail 10 --operation generate</code></pre>
+            <p>Watch the log table above refresh automatically. The terminal command prints the same recent runs in <code>ms | s | min</code> units. Use <code>--operation all</code> to include embedding calls; compare answer quality and source citations as well as time.</p>
+            <p><b>Where the commands are implemented:</b> <code>src\tpm_ai\cli.py</code> defines <code>web</code>, <code>agent</code>, and <code>logs</code>; <code>src\tpm_ai\web.py</code> serves this page and handles chat requests; <code>src\tpm_ai\agent.py</code> builds RAG context; <code>src\tpm_ai\llm.py</code> sends Ollama requests and writes metrics.</p>
+          </div>
+        </section>
+
+        <section id="risks">
+          <div class="eyebrow">10 · Risk and issue management</div>
+          <h2>Risks, dependencies, and troubleshooting</h2>
+          <table>
+            <thead><tr><th>Risk / dependency</th><th>Impact</th><th>Mitigation or response</th></tr></thead>
+            <tbody>
+              <tr><td>Ollama CLI or local service is unavailable</td><td>Models cannot be downloaded or queried from the project.</td><td>Confirm installation with <code>ollama --version</code>, open Ollama from the Start menu, and verify <code>http://localhost:11434/api/tags</code>.</td></tr>
+              <tr><td>Port 11434 is already occupied</td><td>A second Ollama server cannot start.</td><td>The Windows app normally owns this port. Reuse its local service; do not start another <code>ollama serve</code> or terminate an unknown process.</td></tr>
+              <tr><td>Limited CPU throughput or memory pressure</td><td>Slow first token, long responses, or poor usability.</td><td>Benchmark on the target laptop, close memory-heavy apps, and test a smaller quantized model before scaling up.</td></tr>
+              <tr><td>Low-quality or sensitive source documents</td><td>Irrelevant answers or unintended disclosure.</td><td>Curate an approved corpus, protect the SQLite index, and avoid confidential material unless policy explicitly permits it.</td></tr>
+              <tr><td>Retrieval misses relevant evidence</td><td>Generation becomes unsupported or incomplete.</td><td>Inspect <code>ask</code> results first; improve chunking, ranking, or the document set before tuning prompts.</td></tr>
+              <tr><td>False assumption that the integrated GPU is used</td><td>Performance expectations are unrealistic.</td><td>Set a CPU baseline and record actual load and latency; do not infer dedicated VRAM from Windows adapter memory.</td></tr>
+            </tbody>
+          </table>
+          <details>
+            <summary>Python reports that it cannot find tpm_ai.cli</summary>
+            <p>Activate the intended project virtual environment, change to the Module 09 directory, and install the local package once: <code>python -m pip install -e .</code>. Confirm that <code>python -c "import tpm_ai; print(tpm_ai.__file__)"</code> points to this Module 09 <code>src\tpm_ai</code> folder, then retry the CLI. Use the same Python environment for installation and execution.</p>
+          </details>
+          <details>
+            <summary>PowerShell does not recognize the ollama command</summary>
+            <p>Confirm that installation completed, then open a fresh PowerShell window and run <code>ollama --version</code>. If it is still unavailable, open Ollama from the Start menu or review the official Windows installation instructions. The standalone runtime in <code>portable/</code> belongs to a later project phase.</p>
+          </details>
+          <details>
+            <summary>Ollama reports that port 11434 is occupied</summary>
+            <p>On this local-first setup, the installed Ollama app normally runs its own background service. If <code>http://localhost:11434/api/tags</code> responds, use it; do not run a second <code>ollama serve</code>. If it does not respond, open Ollama from the Start menu and retry.</p>
+          </details>
+          <details>
+            <summary>The model or embedding service is unavailable</summary>
+            <p>Run <code>ollama list</code> and confirm that <code>qwen3.5:4b</code> and <code>nomic-embed-text</code> are installed. Verify <code>http://localhost:11434/api/tags</code>. Unless you intentionally changed the <code>OLLAMA_MODELS</code> environment variable, Ollama uses its standard Windows user model directory.</p>
+          </details>
+          <details>
+            <summary>Search results are empty or irrelevant</summary>
+            <p>Confirm that the files are under <code>data\docs\</code>, use <code>.md</code>, <code>.txt</code>, or <code>.csv</code>, and have been ingested. Inspect <code>ask</code> output before attributing the issue to the chat model.</p>
+          </details>
+          <details>
+            <summary>The laptop becomes slow or memory constrained</summary>
+            <p>Connect the laptop to power, close other demanding applications, and capture system memory and response latency. Assume CPU inference unless measurements show otherwise. Test a smaller model before considering a larger one.</p>
+          </details>
+          <details>
+            <summary>Run the development test suite</summary>
+            <p>With a development Python interpreter, run these commands from the module directory:</p>
+            <pre><code>python -m pip install pytest
+python -m pytest -q</code></pre>
+            <p>The current tests do not require downloading or running an Ollama model.</p>
+          </details>
+        </section>
+
+        <section id="glossary">
+          <div class="eyebrow">11 · Technical vocabulary</div>
+          <h2>Glossary</h2>
+          <table class="glossary">
+            <tbody>
+              <tr><td>LLM</td><td>A large language model that generates text from input and context.</td></tr>
+              <tr><td>Token</td><td>A unit of text processed by a model; it may be a word, word fragment, or punctuation mark.</td></tr>
+              <tr><td>Embedding</td><td>A numerical vector used to represent text for similarity comparison.</td></tr>
+              <tr><td>Chunk</td><td>A portion of a source document that is indexed and retrieved as context.</td></tr>
+              <tr><td>RAG</td><td>A pattern that retrieves relevant external content and supplies it to a model before generation.</td></tr>
+              <tr><td>SQLite</td><td>An embedded, file-based database; this project uses it for the local index.</td></tr>
+              <tr><td>Quantization</td><td>A lower-precision representation of model weights that can reduce storage and memory requirements.</td></tr>
+              <tr><td>Inference</td><td>Running a trained model to produce an output; distinct from updating its weights through training.</td></tr>
+              <tr><td>Acceptance criteria</td><td>Observable conditions that must be met before a deliverable is considered complete.</td></tr>
+              <tr><td>Risk / issue / dependency</td><td>A risk may occur; an issue is already occurring; a dependency is work or a condition required by another task.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="roadmap">
+          <div class="eyebrow">12 · Product roadmap</div>
+          <h2>Prioritise the next increments</h2>
+          <ol>
+            <li>Capture the processor model and establish a repeatable performance baseline.</li>
+            <li>Curate topic-based documents and establish a small, approved evaluation corpus.</li>
+            <li>Measure retrieval quality, source traceability, unsupported-answer behavior, latency, and memory.</li>
+            <li>Improve chunking and ranking based on evaluation evidence, not anecdotal impressions.</li>
+            <li>Consider a simple user interface or controlled read-only tools after the local workflow is reliable.</li>
+            <li>Evaluate fine-tuning only if a measured behavior gap remains after prompt and RAG improvements.</li>
+          </ol>
+          <div class="callout good">The first meaningful project outcome is not “training an LLM.” It is asking a question, retrieving the correct passage from a local file, producing a verifiable answer with sources, and repeating the workflow with the network disconnected.</div>
+          <p>Companion technical specification: <a href="./localAI.md">localAI.md</a>.</p>
+        </section>
+      </main>
+    </div>
+    <footer>Module 09 · Local model execution with Ollama · This guide works offline. Checklist and TPM notes are stored only in this browser and are not synchronized. Do not put sensitive project data into shared or unapproved storage.</footer>
+  </div>
+  <script>
+    (() => {
+      const checklistKey = "local-ai-module09-checks-en-v2";
+      const trackerKey = "local-ai-module09-tracker-en-v2";
+      const checks = Array.from(document.querySelectorAll(".task-check"));
+      const progress = document.getElementById("progress");
+      const progressLabel = document.getElementById("progress-label");
+      const milestoneRows = Array.from(document.querySelectorAll("[data-milestone]"));
+      let savedChecks = {};
+      let savedTracker = {};
+
+      try {
+        savedChecks = JSON.parse(localStorage.getItem(checklistKey) || "{}");
+        savedTracker = JSON.parse(localStorage.getItem(trackerKey) || "{}");
+      } catch {
+        savedChecks = {};
+        savedTracker = {};
+      }
+
+      function updateProgress() {
+        const complete = checks.filter((check) => check.checked).length;
+        progress.max = checks.length;
+        progress.value = complete;
+        progressLabel.textContent = `${complete} of ${checks.length} complete`;
+      }
+
+      checks.forEach((check) => {
+        check.checked = savedChecks[check.dataset.task] === true;
+        check.addEventListener("change", () => {
+          savedChecks[check.dataset.task] = check.checked;
+          localStorage.setItem(checklistKey, JSON.stringify(savedChecks));
+          updateProgress();
+        });
+      });
+
+      milestoneRows.forEach((row) => {
+        const key = row.dataset.milestone;
+        const status = row.querySelector("select");
+        const notes = row.querySelector("textarea");
+        const saved = savedTracker[key] || {};
+        status.value = saved.status || "Not started";
+        notes.value = saved.notes || "";
+        [status, notes].forEach((control) => {
+          control.addEventListener("input", () => {
+            savedTracker[key] = { status: status.value, notes: notes.value };
+            localStorage.setItem(trackerKey, JSON.stringify(savedTracker));
+          });
+          control.addEventListener("change", () => {
+            savedTracker[key] = { status: status.value, notes: notes.value };
+            localStorage.setItem(trackerKey, JSON.stringify(savedTracker));
+          });
+        });
+      });
+
+      document.getElementById("reset-progress").addEventListener("click", () => {
+        savedChecks = {};
+        localStorage.removeItem(checklistKey);
+        checks.forEach((check) => { check.checked = false; });
+        updateProgress();
+      });
+
+      document.querySelectorAll(".copy").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const block = button.previousElementSibling;
+          const status = button.nextElementSibling;
+          try {
+            await navigator.clipboard.writeText(block.innerText);
+            status.textContent = "Copied.";
+          } catch {
+            status.textContent = "Automatic copying is unavailable. Select and copy the command manually.";
+          }
+          window.setTimeout(() => { status.textContent = ""; }, 4000);
+        });
+      });
+
+      const logSummary = document.getElementById("call-log-summary");
+      const logRows = document.getElementById("call-log-rows");
+      function renderCallEvents(events, invalidLines = 0) {
+        try {
+          const generations = events.filter((event) => event.operation === "generate");
+          const latencies = generations
+            .map((event) => Number(event.wall_duration_ms))
+            .filter(Number.isFinite)
+            .sort((left, right) => left - right);
+          const average = latencies.length
+            ? latencies.reduce((sum, value) => sum + value, 0) / latencies.length
+            : null;
+          const median = latencies.length
+            ? latencies.length % 2
+              ? latencies[Math.floor(latencies.length / 2)]
+              : (latencies[latencies.length / 2 - 1] + latencies[latencies.length / 2]) / 2
+            : null;
+          const failed = generations.filter((event) => event.status !== "success").length;
+          const totalEvalTokens = generations.reduce(
+            (sum, event) => sum + Number(event.ollama_stats?.eval_count || 0), 0
+          );
+          const totalEvalNanos = generations.reduce(
+            (sum, event) => sum + Number(event.ollama_stats?.eval_duration || 0), 0
+          );
+          const aggregateSpeed = totalEvalNanos > 0
+            ? (totalEvalTokens / (totalEvalNanos / 1e9)).toFixed(2)
+            : "n/a";
+          const formatDuration = (milliseconds) => {
+            if (!Number.isFinite(milliseconds)) return "n/a";
+            return `${milliseconds.toFixed(2)} ms / ${(milliseconds / 1000).toFixed(3)} s / ${(milliseconds / 60000).toFixed(4)} min`;
+          };
+          logSummary.replaceChildren();
+          const summaryTitle = document.createElement("b");
+          summaryTitle.textContent = "Summary";
+          const summaryText = document.createElement("p");
+          summaryText.textContent = `${generations.length} generation calls; average ${formatDuration(average)}; median ${formatDuration(median)}; ${failed} non-success; aggregate ${aggregateSpeed} tokens/s; ${invalidLines} invalid lines.`;
+          logSummary.append(summaryTitle, summaryText);
+
+          logRows.replaceChildren();
+          const latest = generations.slice(-100).reverse();
+          if (!latest.length) {
+            const emptyRow = document.createElement("tr");
+            const emptyCell = document.createElement("td");
+            emptyCell.colSpan = 9;
+            emptyCell.textContent = "No generation calls found in this log.";
+            emptyRow.append(emptyCell);
+            logRows.append(emptyRow);
+          }
+          latest.forEach((event) => {
+            const stats = event.ollama_stats || {};
+            const tokensPerSecond = Number(stats.eval_duration) > 0
+              ? (Number(stats.eval_count || 0) / (Number(stats.eval_duration) / 1e9)).toFixed(2)
+              : "n/a";
+            const nanosecondsToMilliseconds = (value) => Number.isFinite(Number(value))
+              ? (Number(value) / 1e6).toFixed(0)
+              : "";
+            const values = [
+              event.timestamp ? new Date(event.timestamp).toLocaleString() : "",
+              `${event.model || ""} / ${event.status || ""}`,
+              formatDuration(Number(event.wall_duration_ms)),
+              formatDuration(Number(stats.load_duration) / 1e6),
+              formatDuration(Number(stats.prompt_eval_duration) / 1e6),
+              formatDuration(Number(stats.eval_duration) / 1e6),
+              stats.eval_count ?? "",
+              tokensPerSecond,
+              JSON.stringify(event.options || {})
+            ];
+            const row = document.createElement("tr");
+            values.forEach((value) => {
+              const cell = document.createElement("td");
+              cell.textContent = String(value);
+              row.append(cell);
+            });
+            logRows.append(row);
+          });
+        } catch (error) {
+          logSummary.textContent = `Unable to render call log: ${error.message}`;
+        }
+      }
+
+      const chatWindow = document.getElementById("chat-window");
+      const chatForm = document.getElementById("chat-form");
+      const chatQuestion = document.getElementById("chat-question");
+      const chatStatus = document.getElementById("chat-status");
+      const chatDuration = document.getElementById("chat-duration");
+      const chatSend = document.getElementById("chat-send");
+      const chatSourceList = document.getElementById("chat-source-list");
+      const chatHistory = [];
+
+      function formatDuration(milliseconds) {
+        return `${milliseconds.toFixed(2)} ms / ${(milliseconds / 1000).toFixed(3)} s / ${(milliseconds / 60000).toFixed(4)} min`;
+      }
+
+      function appendChatMessage(role, text, sources = []) {
+        const message = document.createElement("div");
+        message.className = `chat-message ${role}`;
+        message.textContent = text;
+        if (sources.length) {
+          const sourceList = document.createElement("small");
+          sourceList.textContent = `Sources: ${sources.map((source) => source.path).join(", ")}`;
+          message.append(sourceList);
+        }
+        chatWindow.append(message);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+      }
+
+      async function loadSourceChoices() {
+        try {
+          const response = await fetch("/api/documents", { cache: "no-store" });
+          if (!response.ok) throw new Error(`Document list request failed (${response.status}).`);
+          const data = await response.json();
+          chatSourceList.replaceChildren();
+          if (!data.documents.length) {
+            chatSourceList.textContent = "No indexed documents yet. Add files under data\\docs\\ and run the ingest command.";
+            return;
+          }
+          for (const sourceDocument of data.documents) {
+            const label = document.createElement("label");
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.name = "chat-source";
+            checkbox.value = sourceDocument.path;
+            const path = document.createElement("code");
+            path.textContent = sourceDocument.path;
+            label.append(checkbox, path);
+            chatSourceList.append(label);
+          }
+        } catch (error) {
+          chatSourceList.textContent = `Unable to load indexed documents: ${error.message}`;
+        }
+      }
+
+      async function refreshCallLog() {
+        try {
+          const response = await fetch("/api/logs", { cache: "no-store" });
+          if (!response.ok) return;
+          const data = await response.json();
+          renderCallEvents(data.events || []);
+        } catch {
+          logSummary.textContent = "Start the local web service to load call logs automatically.";
+        }
+      }
+
+      fetch("/api/health", { cache: "no-store" })
+        .then((response) => {
+          if (!response.ok) throw new Error("Local server returned an error.");
+          return response.json();
+        })
+        .then((data) => {
+          chatStatus.className = "callout good";
+          chatStatus.textContent = `Connected to the local chat service. Default model: ${data.model}.`;
+        })
+        .catch(() => {
+          chatStatus.className = "callout warn";
+          chatStatus.textContent = "Local chat is not connected. Start `python -m tpm_ai.cli web` from module09, then open http://127.0.0.1:8766/.";
+        });
+
+      chatForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const question = chatQuestion.value.trim();
+        if (!question || chatSend.disabled) return;
+
+        const model = document.getElementById("chat-model").value.trim();
+        const topK = Number(document.getElementById("chat-top-k").value);
+        const temperature = Number(document.getElementById("chat-temperature").value);
+        const numPredict = Number(document.getElementById("chat-num-predict").value);
+        const seedValue = document.getElementById("chat-seed").value;
+        const thinkValue = document.getElementById("chat-think").value;
+        const sources = [...chatSourceList.querySelectorAll('input[name="chat-source"]:checked')]
+          .map((checkbox) => checkbox.value);
+        const options = { temperature, num_predict: numPredict };
+        if (seedValue !== "") options.seed = Number(seedValue);
+
+        appendChatMessage("user", question);
+        chatHistory.push({ role: "user", content: question });
+        chatQuestion.value = "";
+        chatSend.disabled = true;
+        chatStatus.className = "callout";
+        const startedAt = performance.now();
+        chatStatus.textContent = "Generating locally…";
+        const timer = window.setInterval(() => {
+          chatDuration.textContent = `Elapsed: ${formatDuration(performance.now() - startedAt)}`;
+        }, 100);
+
+        try {
+          const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              question,
+              history: chatHistory.slice(-8, -1),
+              model,
+              top_k: topK,
+              sources,
+              options,
+              think: thinkValue === "false" ? false : thinkValue
+            })
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || `Local chat request failed (${response.status}).`);
+
+          appendChatMessage("assistant", data.answer, data.sources || []);
+          chatHistory.push({ role: "assistant", content: data.answer });
+          chatDuration.textContent = `Server end-to-end: ${formatDuration(data.wall_duration_ms)}`;
+          chatStatus.className = "callout good";
+          chatStatus.textContent = `Completed with ${data.sources.length} retrieved source(s).`;
+          await refreshCallLog();
+        } catch (error) {
+          appendChatMessage("error", error.message);
+          chatStatus.className = "callout danger";
+          chatStatus.textContent = "The local request failed. Check the Python server terminal and the JSONL call log.";
+        } finally {
+          window.clearInterval(timer);
+          chatSend.disabled = false;
+          chatQuestion.focus();
+        }
+      });
+
+      chatQuestion.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          chatForm.requestSubmit();
+        }
+      });
+
+      document.getElementById("chat-clear").addEventListener("click", () => {
+        chatHistory.length = 0;
+        chatWindow.replaceChildren();
+        chatDuration.textContent = "";
+        chatStatus.className = "callout";
+        chatStatus.textContent = "Conversation cleared from this browser page.";
+      });
+
+      refreshCallLog();
+      loadSourceChoices();
+      refreshCallLog();
+      updateProgress();
+    })();
+  </script>
+</body>
+</html>
