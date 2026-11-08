@@ -60,6 +60,8 @@ export class ImageVectorizer {
     logger.setStep(2);
     const imgData = ctx.getImageData(0, 0, 32, 32).data;
     const rawTensor = TensorMemoryTracker.allocate(`RawRGBA_${member.name}`, [32, 32, 4], imgData);
+    const sampleOffset = (16 * 32 + 16) * 4;
+    const rgbSample = Array.from(imgData.slice(sampleOffset, sampleOffset + 3));
     logger.log(
       'MEMORIA',
       `Tensor bruto alocado: ${rawTensor.name} shape=[32,32,4] (${imgData.length} bytes) | Tensores ativos: ${TensorMemoryTracker.activeTensors}`
@@ -106,12 +108,18 @@ export class ImageVectorizer {
 
     logger.log(
       'VALIDACAO',
-      `[CHECKPOINT 2 - NORMALIZAÇÃO] ${member.name}: Bruto[0-255]=[${rawFeatures255.slice(0, 4).join(', ')}...] ➔ Norm[0-1]=[${normalizedFeatures.slice(0, 4).join(', ')}...]`
+      `[CHECKPOINT 2 - LUMINÂNCIA RGB] ${member.name}: amostra RGB=(${rgbSample.join(', ')}) | 16 médias[0-255]=[${rawFeatures255.slice(0, 4).join(', ')}...]`
+    );
+    logger.log(
+      'VALIDACAO',
+      `[CHECKPOINT 3 - NORM & DISPOSE] Bruto[0-255]=[${rawFeatures255.slice(0, 4).join(', ')}...] ➔ Norm[0-1]=[${normalizedFeatures.slice(0, 4).join(', ')}...] | tensor bruto liberado`
     );
 
     return {
       rawFeatures255,
       normalizedFeatures,
+      rgbSample,
+      sourceDimensions: img ? { width: img.width, height: img.height } : { width: 32, height: 32 },
       imageElement: img
     };
   }

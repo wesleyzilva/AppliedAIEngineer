@@ -181,7 +181,7 @@ self.onmessage = async (event) => {
       payload: {
         warmupMs: (warmupMs1 + warmupMs2).toFixed(3),
         disposedCount: workerDisposedTensors,
-        message: `[CHECKPOINT 3 - AQUECIMENTO] Tela=${screenWidth}x${screenHeight}px | Tensor dummy [1, 16] propagado por Layer1(${p1Config.hiddenUnits})->Layer2(${p1Config.hiddenUnits2 || 8})->Softmax(6) em ${(warmupMs1 + warmupMs2).toFixed(2)}ms e limpo da memória!`
+        message: `[CHECKPOINT 4 - WARMUP] Tela=${screenWidth}x${screenHeight}px | Tensor dummy [1, 16] propagado por Layer1(${p1Config.hiddenUnits})->Layer2(${p1Config.hiddenUnits2 || 8})->Softmax(6) em ${(warmupMs1 + warmupMs2).toFixed(2)}ms e limpo da memória!`
       }
     });
 

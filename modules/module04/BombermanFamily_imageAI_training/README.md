@@ -4,9 +4,9 @@ A production-grade, interactive educational laboratory for **Machine Learning En
 
 ## 📌 Executive Summary
 
-The **Bomberman Family AI Lab** investigates how identity embeddings derived from facial imagery can be fused with real-time spatial sensor telemetry to train tactical combat agents. Each family member (**Samuel, Daiana, Heitor, and Wesley**) is initialized with a distinct hyperparameter configuration (varying training epochs, learning rates, and hidden layer dimensions). 
+The **Bomberman Family AI Lab** demonstrates how image-derived luminance features and real-time spatial sensor telemetry can feed a tactical MLP agent. Those image features are not semantic embeddings from a language model. Each family member (**Samuel, Daiana, Heitor, and Wesley**) is initialized with a distinct hyperparameter configuration (varying training epochs, learning rates, and hidden layer dimensions).
 
-Users can observe the mathematical convergence of the model in real time via live loss curves, synapse weight inspectors (X-Ray view), browser console audit logs, and a simulated **YOLOv8** object detection HUD.
+Users can observe the mathematical convergence of the model in real time via live loss curves, synapse weight inspectors (X-Ray view), browser console audit logs, and a simulated **YOLOv8** object detection HUD. The in-page study console also provides separate, clearly labeled simulations for selected AI and LLM concepts.
 
 ## 🏛️ System Architecture
 
@@ -35,7 +35,7 @@ flowchart TB
         M{"13. Bomb Blast Threat?"}
         N["🏃 Mandatory Evasion (BFS)<br/>Navigate around corners to safety"]
         O["🎯 Pursuit & Brick Breaker<br/>Plant offensive bomb & trap opponent"]
-        P["💥 Bomb Detonation<br/>Owner Blast Immunity & -50 HP to Opponent"]
+        P["💥 Bomb Detonation<br/>-50 HP to every player in the blast"]
         Q{"Opponent HP == 0?"}
         R["🏆 VICTORY & GAME OVER<br/>Elimination confirmed on arena HUD"]
 
@@ -47,7 +47,7 @@ flowchart TB
         Q -- "Yes" --> R
     end
 
-    D == "Normalized Face Embedding" ==> F
+    D == "Normalized Image Features" ==> F
     I == "Telemetry & Synaptic Weights" ==> E
     I == "Optimized Decision Weights" ==> K
 ```
@@ -68,7 +68,7 @@ The following breakdown highlights the technical and algorithmic divergence betw
 | **Optimization Objective** | $\mathcal{L}_{\text{CCE}} = -\log(P_{\text{target action}})$ | Contrastive Triplet / InfoNCE Loss + LambdaMART ranking |
 | **Primary Goal** | Obstacle destruction, BFS evasion, opponent elimination | Relevance scoring, precision retrieval, career suitability |
 | **Evaluation Metrics** | Survival duration, loss convergence rate, win percentage | $\text{NDCG}@K$, $\text{Precision}@K$, $\text{Recall}@K$, $\text{MRR}$ |
-| **Safety & Governance** | Blast zone self-immunity and wall collision clipping | Demographic parity, anti-bias audits, disparate impact checks |
+| **Safety & Governance** | Blast damage applies to both players, including the bomb owner; agents use BFS to escape | Demographic parity, anti-bias audits, disparate impact checks |
 
 ## 🔬 Mathematical Formulations & Pipelines
 
@@ -152,8 +152,8 @@ where $c_x, c_y, w, h \in [0.000, 1.000]$.
 ## ⚔️ Combat Mechanics & Arena Physics
 
 * **Player-to-Player Physical Collision (PvP):** Agents cannot occupy or pass through the same grid coordinate.
-* **Owner Blast Immunity:** Bombs never inflict damage upon the agent that planted them.
-* **Damage & Elimination:** Each player starts with $100\%\text{ HP}$. Sustaining an explosion blast deducts $-50\%\text{ HP}$.
+* **Blast Damage:** Each player in an explosion, including the bomb owner, loses $50\%\text{ HP}$.
+* **Damage & Elimination:** Each player starts with $100\%\text{ HP}$. A surviving player wins; simultaneous elimination is a draw.
 * **Floating Text Feedback:** Displays dynamic floating text indicators (`-50 HP!` and `💀 ELIMINATED!`) directly above characters.
 * **Victory Condition:** A match concludes strictly when an agent reduces the opponent's HP to zero.
 
@@ -182,6 +182,7 @@ BombermanFamily_imageAI_training/
         ├── DatasetExporter.js   # YOLO training dataset packager (.png + .txt)
         ├── FeatureVectorizer.js # Arena sensor extraction and BFS escape pathfinding
         ├── ImageVectorizer.js   # 32x32 facial cropping, luminance, normalization & dispose()
+        ├── StudyConsole.js      # Interactive, didactic AI/LLM concept simulations
         └── YoloDetector.js      # Bounding-box detection engine and class filter
 ```
 
@@ -218,12 +219,45 @@ npm start
 http://localhost:5173/
 ```
 
+### In-page study paths
+
+The study console has two independent paths:
+
+1. **Conceitos básicos** presents the ten course assessment questions on embeddings,
+   sampling, genetic algorithms, RAG/MCP, self-attention, Neo4j, neural-network layers,
+   and MCP components. Each question includes a dedicated diagram that updates with
+   the selection, then reveals the correct option, an explanation, and an explicit
+   comparison with the game. Comparisons distinguish actual game behavior from
+   concepts that are only analogies or are not implemented.
+2. **Estudo guiado · Checkpoints de validação** follows the five implementation stages
+   described below. It focuses on the game's live processing pipeline rather than the
+   general assessment topics.
+
+The two paths are selectable independently; progress in one does not replace the other.
+
+### In-page validation-checkpoint lessons
+
+The **Estudo guiado · Checkpoints de validação** card follows the same five stages as
+the validation panel: **Tela & Recorte**, **Luminância RGB**, **Norm & dispose()**,
+**Warmup & Treino**, and **YOLO 1º Objeto**. Each checkpoint has a short explanation, a
+live-data activity, and a quiz. Its separate diagram canvas is in the dashboard, never
+on top of the running game. Complete a quiz to unlock the next checkpoint; use the
+selector to revisit any stage.
+
+The diagrams use the current preprocessing values, warmup/training telemetry, MLP
+probabilities, and filtered detections. In **Warmup & Treino**, the six action
+probabilities are compared side by side with an illustrative LLM next-token distribution.
+Temperature, Top-K and Top-P affect only the LLM example; the arena's MLP and tactical
+rules do not use them. The YOLO boxes in this project are a teaching simulation based on
+known object positions, not inference from trained YOLOv8 weights.
+
 ## 🔍 Validation & Console Audit Checkpoints
 
 Press **`F12`** in your browser to open Developer Tools and select the **Console** tab. The laboratory outputs structured, color-coded checkpoints:
 
 * `[CHECKPOINT 1 - INPUT]` Displays canvas dimensions ($720 \times 624\text{px}$) and downsampled avatar dimension ($32 \times 32\text{px}$).
-* `[CHECKPOINT 2 - NORMALIZATION]` Validates raw pixel values $[0, 255]$ transitioning to normalized tensor $[0.00, 1.00]$, logging the execution of `rawTensor.dispose()`.
-* `[CHECKPOINT 3 - WARMUP]` Logs model warmup execution time in milliseconds for the 2-hidden-layer network.
+* `[CHECKPOINT 2 - LUMINÂNCIA RGB]` Validates RGB-to-luminance conversion and the 16 raw block averages $[0, 255]$.
+* `[CHECKPOINT 3 - NORM & DISPOSE]` Shows the conversion to normalized features $[0.00, 1.00]$ and confirms the temporary raw tensor was released.
+* `[CHECKPOINT 4 - WARMUP]` Logs model warmup execution time in milliseconds for the 2-hidden-layer network; training epochs and loss are reported at the same checkpoint.
 * `[CHECKPOINT 4 - EPOCHS]` Audits training convergence every 10 epochs, displaying falling categorical loss and rising classification confidence.
 * `[CHECKPOINT 5 - YOLO]` Outputs the coordinates, class ID, and confidence score of the primary detected object in real time.

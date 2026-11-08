@@ -5,10 +5,12 @@ import { Grid } from './map/Grid.js';
 import { Player } from './entities/Player.js';
 import { Bomb } from './entities/Bomb.js';
 import { Explosion } from './entities/Explosion.js';
+import { DamageSystem } from './systems/DamageSystem.js';
 import { ImageVectorizer, TensorMemoryTracker } from './ml/ImageVectorizer.js';
 import { FeatureVectorizer } from './ml/FeatureVectorizer.js';
 import { YoloDetector } from './ml/YoloDetector.js';
 import { DatasetExporter } from './ml/DatasetExporter.js';
+import { initStudyConsole } from './ml/StudyConsole.js';
 import { logger } from './core/Logger.js';
 
 async function bootstrap() {
@@ -31,6 +33,8 @@ async function bootstrap() {
 
   let grid, p1, p2;
   let rawFaceP1 = [], faceVecP1 = [], faceVecP2 = [];
+  let currentRgbSample = [];
+  let currentSourceDimensions = { width: 32, height: 32 };
   let showNormalizedMatrix = true;
   let yoloEnabled = true;
   let selectedYoloClassFilter = -1;
@@ -39,13 +43,45 @@ async function bootstrap() {
   let isTraining = true;
   let matchEnded = false;
   let customBonusEpochsP1 = 0;
-
   let historyP1 = [];
   let historyP2 = [];
   let latestW1 = null;
   let latestW2 = null;
   let latestProbsP1 = [0.16, 0.16, 0.16, 0.16, 0.16, 0.16];
   let latestChosenActionP1 = 5;
+  let latestChosenModeP1 = 'aguardando inferência';
+  let latestTacticalStateP1 = null;
+  let latestTrainingP1 = { epoch: 0, totalEpochs: 0, loss: null };
+  let latestWarmupMs = null;
+  let latestYoloDetections = [];
+  const renderStudyContext = initStudyConsole({
+    getGameState: () => ({
+      p1,
+      p2,
+      grid,
+      screenWidth: SCREEN_WIDTH,
+      screenHeight: SCREEN_HEIGHT,
+      bombs,
+      bombCount: bombs.length,
+      faceFeatures: faceVecP1,
+      rawFeatures: rawFaceP1,
+      rgbSample: currentRgbSample,
+      sourceDimensions: currentSourceDimensions,
+      facePreview: document.getElementById('face-p1'),
+      tacticalState: latestTacticalStateP1,
+      probabilities: latestProbsP1,
+      chosenAction: latestChosenActionP1,
+      chosenMode: latestChosenModeP1,
+      training: isTraining,
+      trainingMetrics: latestTrainingP1,
+      warmupMs: latestWarmupMs,
+      tensorMemory: {
+        active: TensorMemoryTracker.activeTensors,
+        disposed: TensorMemoryTracker.totalDisposed
+      },
+      detections: latestYoloDetections
+    })
+  });
 
   const chartCanvas = document.getElementById('metrics-canvas');
   const chartCtx = chartCanvas.getContext('2d');
@@ -53,6 +89,7 @@ async function bootstrap() {
   const elMainThread = document.getElementById('m-main-thread');
   const elWorkerThread = document.getElementById('m-worker-thread');
   const elWarmupInfo = document.getElementById('m-warmup-info');
+  let studyContextAccumulator = 0;
 
   function renderPixelMatrixUI() {
     const container = document.getElementById('pixel-matrix-p1');
@@ -176,6 +213,7 @@ async function bootstrap() {
 
     if (type === 'WARMUP_COMPLETE') {
       elWarmupInfo.textContent = `Tela ${SCREEN_WIDTH}x${SCREEN_HEIGHT}px | Warmup OK (${payload.warmupMs}ms)`;
+      latestWarmupMs = Number(payload.warmupMs);
       TensorMemoryTracker.totalDisposed += payload.disposedCount;
       TensorMemoryTracker.updateUI();
       logger.log('AQUECIMENTO', payload.message);
@@ -201,6 +239,11 @@ async function bootstrap() {
       document.getElementById('p1-conf').textContent = `${(payload.p1.confidence * 100).toFixed(1)}%`;
       document.getElementById('p1-loss').textContent = payload.p1.loss.toFixed(4);
       document.getElementById('p1-epoch').textContent = `${payload.p1.epoch}/${payload.p1.totalEpochs}`;
+      latestTrainingP1 = {
+        epoch: payload.p1.epoch,
+        totalEpochs: payload.p1.totalEpochs,
+        loss: payload.p1.loss
+      };
 
       document.getElementById('p2-conf').textContent = `${(payload.p2.confidence * 100).toFixed(1)}%`;
       document.getElementById('p2-loss').textContent = payload.p2.loss.toFixed(4);
@@ -232,6 +275,7 @@ async function bootstrap() {
       const act2 = payload.p2.actionIndex;
 
       latestChosenActionP1 = act1;
+      latestChosenModeP1 = payload.p1.mode ?? 'MLP';
       if (payload.p1.probs) latestProbsP1 = payload.p1.probs;
       drawNeuralNetXRay();
 
@@ -258,6 +302,8 @@ async function bootstrap() {
     const res2 = await ImageVectorizer.extractNormalizedFaceVector(member2, 'face-p2');
     rawFaceP1 = res1.rawFeatures255;
     faceVecP1 = res1.normalizedFeatures;
+    currentRgbSample = res1.rgbSample;
+    currentSourceDimensions = res1.sourceDimensions;
     faceVecP2 = res2.normalizedFeatures;
 
     renderPixelMatrixUI();
@@ -273,7 +319,7 @@ async function bootstrap() {
     app.stage.addChild(p2);
 
     updateScoreboard(member1, member2);
-    YoloDetector.inspectArena(grid, p1, p2, bombs, explosions, yoloOverlay, yoloOutputEl, yoloEnabled, selectedYoloClassFilter);
+    latestYoloDetections = YoloDetector.inspectArena(grid, p1, p2, bombs, explosions, yoloOverlay, yoloOutputEl, yoloEnabled, selectedYoloClassFilter);
 
     aiWorker.postMessage({
       type: 'TRAIN_BOTH',
@@ -351,26 +397,30 @@ async function bootstrap() {
   }
 
   function triggerExplosion(bomb) {
+    if (matchEnded) return;
     app.stage.removeChild(bomb);
     const exp = new Explosion(bomb.col, bomb.row, bomb.radius, grid);
     explosions.push(exp);
     app.stage.addChild(exp);
 
-    [p1, p2].forEach((target) => {
-      if (!target.alive) return;
-      if (target === bomb.owner) return; // Proteção do dono da bomba
+    const victims = DamageSystem.applyExplosionDamage(exp, [p1, p2], 50);
+    if (victims.length === 0) return;
 
-      const hit = exp.affectedCells.some(c => c.col === target.gridCol && c.row === target.gridRow);
-      if (hit) {
-        target.takeDamage(50);
-        updateScoreboard();
-        logger.log('COMBATE', `💥 ${bomb.owner.member.name} atingiu ${target.member.name}! (-50 HP | Restante: ${target.hp}%)`);
-
-        if (!target.alive) {
-          declareWinner(bomb.owner, target);
-        }
-      }
+    updateScoreboard();
+    victims.forEach((target) => {
+      const message = target === bomb.owner
+        ? `💥 ${target.member.name} foi atingido pela própria bomba!`
+        : `💥 ${bomb.owner.member.name} atingiu ${target.member.name}!`;
+      logger.log('COMBATE', `${message} (-50 HP | Restante: ${target.hp}%)`);
     });
+
+    const survivors = [p1, p2].filter((player) => player.alive);
+    if (survivors.length === 1) {
+      const loser = survivors[0] === p1 ? p2 : p1;
+      declareWinner(survivors[0], loser);
+    } else if (survivors.length === 0) {
+      declareDraw();
+    }
   }
 
   function declareWinner(winner, loser) {
@@ -390,6 +440,25 @@ async function bootstrap() {
     banner.position.set(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
     app.stage.addChild(banner);
     logger.log('COMBATE', `🏆 FIM DE JOGO! ${winner.member.name} venceu eliminando ${loser.member.name}!`);
+  }
+
+  function declareDraw() {
+    matchEnded = true;
+    const banner = new Text({
+      text: '🤝 EMPATE!\nAmbos foram eliminados na explosão.',
+      style: {
+        fontFamily: 'monospace',
+        fontSize: 20,
+        fill: 0xfacc15,
+        align: 'center',
+        fontWeight: 'bold',
+        stroke: { color: 0x000000, width: 4 }
+      }
+    });
+    banner.anchor.set(0.5);
+    banner.position.set(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+    app.stage.addChild(banner);
+    logger.log('COMBATE', '🤝 FIM DE JOGO! Ambos os jogadores foram eliminados na mesma explosão.');
   }
 
   document.getElementById('select-p1').addEventListener('change', () => {
@@ -432,6 +501,11 @@ async function bootstrap() {
 
     if (p1) p1.update(dt);
     if (p2) p2.update(dt);
+    studyContextAccumulator += dt;
+    if (studyContextAccumulator >= 0.1) {
+      studyContextAccumulator = 0;
+      renderStudyContext();
+    }
 
     for (let i = bombs.length - 1; i >= 0; i--) {
       if (bombs[i].update(dt)) bombs.splice(i, 1);
@@ -445,7 +519,7 @@ async function bootstrap() {
     }
 
     if (grid && p1 && p2) {
-      YoloDetector.inspectArena(grid, p1, p2, bombs, explosions, yoloOverlay, yoloOutputEl, yoloEnabled, selectedYoloClassFilter);
+      latestYoloDetections = YoloDetector.inspectArena(grid, p1, p2, bombs, explosions, yoloOverlay, yoloOutputEl, yoloEnabled, selectedYoloClassFilter);
     }
 
     if (isTraining || matchEnded) return;
@@ -455,6 +529,7 @@ async function bootstrap() {
       stepAccumulator = 0;
       const stateP1 = FeatureVectorizer.buildTacticalState(grid, p1, p2, bombs, faceVecP1);
       const stateP2 = FeatureVectorizer.buildTacticalState(grid, p2, p1, bombs, faceVecP2);
+      latestTacticalStateP1 = stateP1;
 
       aiWorker.postMessage({
         type: 'PREDICT_STEP',
