@@ -1383,6 +1383,8 @@ export function initStudyConsole({ getGameState = () => null }) {
   const gameTitle = document.getElementById('study-game-title');
   const gameDescription = document.getElementById('study-game-description');
   const gameEvidence = document.getElementById('study-game-evidence');
+  const liveGameStatus = document.getElementById('study-live-status');
+  const liveGameDetails = document.getElementById('study-live-details');
   const stepCount = document.getElementById('study-step-count');
   const stepStatus = document.getElementById('study-step-status');
   const progress = document.getElementById('study-progress');
@@ -1408,7 +1410,8 @@ export function initStudyConsole({ getGameState = () => null }) {
     !basicFeedback || !basicGameRelation || !basicQuestionCount || !basicScore ||
     !basicProgress || !basicPrevious || !basicNext ||
     !conceptSelect || !visualization || !promptInput || !explanation || !stepTitle || !stepTask ||
-    !gameTitle || !gameDescription || !gameEvidence || !stepCount || !stepStatus ||
+    !gameTitle || !gameDescription || !gameEvidence || !liveGameStatus || !liveGameDetails ||
+    !stepCount || !stepStatus ||
     !progress || !activity || !options || !output ||
     !temperature || !topK || !topP || !quiz || !question || !answers ||
     !quizFeedback || !checkAnswerButton || !correctAnswer || !backButton ||
@@ -1474,6 +1477,34 @@ export function initStudyConsole({ getGameState = () => null }) {
       topP: Number(topP.value),
       game
     });
+  }
+
+  function renderLiveGameState() {
+    const game = getGameState() ?? {};
+    if (!game.p1 || !game.p2) {
+      liveGameStatus.textContent = 'Aguardando inicialização da partida local...';
+      liveGameDetails.textContent = 'Os dados aparecerão aqui assim que os jogadores e a arena forem carregados.';
+      return;
+    }
+
+    liveGameStatus.textContent = game.matchEnded
+      ? 'Partida local encerrada · exibindo os dados finais.'
+      : 'Conectado à partida aberta neste navegador · atualização ao vivo.';
+    const p1State = `P1 ${game.p1.member?.name ?? ''} (${game.p1.alive ? `${game.p1.hp} HP` : 'eliminado'}) em (${game.p1.gridCol},${game.p1.gridRow})`;
+    const p2State = `P2 ${game.p2.member?.name ?? ''} (${game.p2.alive ? `${game.p2.hp} HP` : 'eliminado'}) em (${game.p2.gridCol},${game.p2.gridRow})`;
+    const probabilities = game.probabilities?.map((value, index) =>
+      `${GAME_ACTIONS[index]} ${(value * 100).toFixed(0)}%`
+    ).join(' · ');
+    const detections = game.detections?.length ?? 0;
+    const training = game.training
+      ? `treino ${game.trainingMetrics?.epoch ?? 0}/${game.trainingMetrics?.totalEpochs || '…'}`
+      : 'treino concluído';
+    liveGameDetails.textContent = [
+      `${p1State} · ${p2State}`,
+      `MLP sugeriu ${GAME_ACTIONS[game.chosenAction] ?? 'aguardar'} · ${training}`,
+      `Bombas ${game.bombCount ?? 0} · detecções ${detections}`,
+      probabilities ? `Probabilidades: ${probabilities}` : ''
+    ].filter(Boolean).join('\n');
   }
 
   function renderQuiz(lesson) {
@@ -1957,6 +1988,7 @@ export function initStudyConsole({ getGameState = () => null }) {
   log('Trilha de conceitos básicos: responda, confira a explicação e veja a relação com o jogo.');
 
   return () => {
+    renderLiveGameState();
     if (studyFocus === 'checkpoints') renderGameLink();
   };
 }

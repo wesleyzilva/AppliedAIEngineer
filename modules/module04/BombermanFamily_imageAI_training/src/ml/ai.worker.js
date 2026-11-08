@@ -93,7 +93,7 @@ class DeepNeuralNetMLP {
     });
 
     const probs = this.softmax(logits);
-    return { h1, h2, probs };
+    return { h1, h2, logits, probs };
   }
 
   trainEpoch(dataset) {
@@ -223,6 +223,7 @@ self.onmessage = async (event) => {
           disposedCount: workerDisposedTensors,
           weightsW1: models.p1.net.W1.slice(0, 6).map(row => row.slice(0, 6)),
           weightsW2: models.p1.net.W2.slice(0, 6).map(row => row.slice(0, 6)),
+          weightsW3: models.p1.net.W3.slice(0, 6).map(row => row.slice(0, 6)),
           p1: { epoch: models.p1.trainedEpochs, totalEpochs: p1Config.epochs, loss: models.p1.loss, confidence: models.p1.confidence },
           p2: { epoch: models.p2.trainedEpochs, totalEpochs: p2Config.epochs, loss: models.p2.loss, confidence: models.p2.confidence }
         }
@@ -268,20 +269,22 @@ function computeDecision(modelEntry, state) {
     ...state.faceSample
   ];
 
-  const { probs } = modelEntry.net.forward(inputVec);
+  const forward = modelEntry.net.forward(inputVec);
+  const { probs } = forward;
+  const trace = { input: inputVec, ...forward };
 
   if (state.currentDanger > 0 && state.escapeDirIndex !== -1) {
-    return { actionIndex: state.escapeDirIndex, confidence: modelEntry.confidence, loss: modelEntry.loss, mode: 'FUGA', probs };
+    return { actionIndex: state.escapeDirIndex, confidence: modelEntry.confidence, loss: modelEntry.loss, mode: 'FUGA', probs, trace };
   }
 
   const effectivePrecision = Math.min(0.99, modelEntry.confidence);
 
   if (Math.random() < effectivePrecision) {
     if ((state.enemyInBlastLine > 0.5 || state.adjacentBrick > 0.5) && state.canEscapeIfBomb > 0.5) {
-      return { actionIndex: 4, confidence: modelEntry.confidence, loss: modelEntry.loss, mode: 'ATAQUE', probs };
+      return { actionIndex: 4, confidence: modelEntry.confidence, loss: modelEntry.loss, mode: 'ATAQUE', probs, trace };
     }
     if (state.huntDirIndex !== -1) {
-      return { actionIndex: state.huntDirIndex, confidence: modelEntry.confidence, loss: modelEntry.loss, mode: 'CAÇA', probs };
+      return { actionIndex: state.huntDirIndex, confidence: modelEntry.confidence, loss: modelEntry.loss, mode: 'CAÇA', probs, trace };
     }
   }
 
@@ -295,8 +298,8 @@ function computeDecision(modelEntry, state) {
         bestDir = m;
       }
     }
-    return { actionIndex: bestDir, confidence: modelEntry.confidence, loss: modelEntry.loss, mode: 'EXPLORAÇÃO', probs };
+    return { actionIndex: bestDir, confidence: modelEntry.confidence, loss: modelEntry.loss, mode: 'EXPLORAÇÃO', probs, trace };
   }
 
-  return { actionIndex: 5, confidence: modelEntry.confidence, loss: modelEntry.loss, mode: 'ESPERA', probs };
+  return { actionIndex: 5, confidence: modelEntry.confidence, loss: modelEntry.loss, mode: 'ESPERA', probs, trace };
 }

@@ -47,6 +47,9 @@ async function bootstrap() {
   let historyP2 = [];
   let latestW1 = null;
   let latestW2 = null;
+  let latestW3 = null;
+  let latestForwardTrace = null;
+  let latestInferenceAt = null;
   let latestProbsP1 = [0.16, 0.16, 0.16, 0.16, 0.16, 0.16];
   let latestChosenActionP1 = 5;
   let latestChosenModeP1 = 'aguardando inferência';
@@ -75,6 +78,7 @@ async function bootstrap() {
       training: isTraining,
       trainingMetrics: latestTrainingP1,
       warmupMs: latestWarmupMs,
+      matchEnded,
       tensorMemory: {
         active: TensorMemoryTracker.activeTensors,
         disposed: TensorMemoryTracker.totalDisposed
@@ -89,6 +93,26 @@ async function bootstrap() {
   const elMainThread = document.getElementById('m-main-thread');
   const elWorkerThread = document.getElementById('m-worker-thread');
   const elWarmupInfo = document.getElementById('m-warmup-info');
+  const elNeuralNetStatus = document.getElementById('nn-live-status');
+  const maxFpsInput = document.getElementById('game-max-fps');
+  const gameSpeedInput = document.getElementById('game-speed');
+  const maxFpsValue = document.getElementById('game-max-fps-value');
+  const gameSpeedValue = document.getElementById('game-speed-value');
+  if (!maxFpsInput || !gameSpeedInput || !maxFpsValue || !gameSpeedValue) {
+    throw new Error('Controles de velocidade do jogo não encontrados no HTML.');
+  }
+  let gameSpeed = Number(gameSpeedInput.value);
+  app.ticker.maxFPS = Number(maxFpsInput.value);
+
+  maxFpsInput.addEventListener('input', () => {
+    const maxFps = Number(maxFpsInput.value);
+    app.ticker.maxFPS = maxFps;
+    maxFpsValue.textContent = `${maxFps} FPS`;
+  });
+  gameSpeedInput.addEventListener('input', () => {
+    gameSpeed = Number(gameSpeedInput.value);
+    gameSpeedValue.textContent = `${gameSpeed.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}×`;
+  });
   let studyContextAccumulator = 0;
 
   function renderPixelMatrixUI() {
@@ -112,99 +136,139 @@ async function bootstrap() {
     }
   }
 
-  // Desenha as 4 Colunas da Rede Neural Profunda: Input -> Layer 1 -> Layer 2 (Extra) -> Softmax
-  function drawNeuralNetXRay() {
+  function drawNeuralNetXRay(now = performance.now()) {
     const w = nnCanvas.width;
     const h = nnCanvas.height;
+    const displayScale = Math.max(0.25, Math.min(1, nnCanvas.clientWidth / w));
+    const px = (value) => value / displayScale;
     nnCtx.clearRect(0, 0, w, h);
 
-    const inX = 24;
-    const h1X = 105;
-    const h2X = 185;
-    const outX = 260;
+    const nodeCount = 6;
+    const columns = [70, 260, 440, 615];
+    const top = 60;
+    const bottom = 232;
+    const nodeY = (index) => top + index * (bottom - top) / (nodeCount - 1);
+    const labels = ['Walk↑', 'Walk↓', 'Walk←', 'Walk→', 'Danger↑', 'Danger↓'];
+    const inputValues = latestForwardTrace?.input ?? [];
+    const firstLayer = latestForwardTrace?.h1 ?? [];
+    const extraLayer = latestForwardTrace?.h2 ?? [];
+    const outputValues = latestForwardTrace?.probs ?? latestProbsP1;
+    const layerWeights = [latestW1, latestW2, latestW3];
+    const stageStart = latestInferenceAt === null ? Number.POSITIVE_INFINITY : now - latestInferenceAt;
+    const stageIndex = stageStart < 720 ? Math.floor((stageStart % 240) / 80) : -1;
+    const stageProgress = stageIndex >= 0 ? (stageStart % 80) / 80 : 0;
+    const layerXs = columns.slice(0, 3);
 
-    const nodes = 6;
-    const getY = (idx, total) => 16 + (idx * (h - 26)) / (total - 1);
+    nnCtx.font = `bold ${px(13)}px Consolas, monospace`;
+    nnCtx.textAlign = 'center';
+    [['IN · 16', columns[0]], ['ReLU · L1', columns[1]], ['Extra · L2', columns[2]], ['Softmax · 6', columns[3]]]
+      .forEach(([label, x]) => {
+        nnCtx.fillStyle = '#e2e8f0';
+        nnCtx.fillText(label, x, 28);
+      });
 
-    // Títulos das camadas
-    nnCtx.font = 'bold 8px monospace';
-    nnCtx.fillStyle = '#94a3b8';
-    nnCtx.fillText('IN(16)', inX - 14, 9);
-    nnCtx.fillText('L1(ReLU)', h1X - 18, 9);
-    nnCtx.fillText('L2(Extra)', h2X - 18, 9);
-    nnCtx.fillText('SOFTMAX', outX - 14, 9);
+    layerWeights.forEach((weights, stage) => {
+      const sourceX = layerXs[stage];
+      const targetX = columns[stage + 1];
+      for (let source = 0; source < nodeCount; source++) {
+        for (let target = 0; target < nodeCount; target++) {
+          const weight = weights?.[source]?.[target];
+          const sourceActivation = stage === 0
+            ? Number(inputValues[source] ?? 0)
+            : Number((stage === 1 ? firstLayer : extraLayer)[source] ?? 0);
+          const activeStrength = Math.min(1, Math.abs(sourceActivation));
+          const hasWeights = Number.isFinite(weight);
+          const magnitude = hasWeights ? Math.min(1, Math.abs(weight) * 2) : 0;
+          const isFlowing = stage === stageIndex && sourceActivation > 0.03 && magnitude > 0.08;
+          const baseAlpha = hasWeights ? 0.08 + magnitude * (isFlowing ? 0.32 + activeStrength * 0.35 : 0.2) : 0.06;
+          nnCtx.strokeStyle = hasWeights
+            ? weight >= 0
+              ? `rgba(56, 189, 248, ${baseAlpha})`
+              : `rgba(248, 113, 113, ${baseAlpha})`
+            : 'rgba(148, 163, 184, 0.08)';
+          nnCtx.lineWidth = px(hasWeights ? 0.5 + magnitude * (isFlowing ? 1.8 : 0.9) : 0.4);
+          nnCtx.beginPath();
+          nnCtx.moveTo(sourceX + 9, nodeY(source));
+          nnCtx.lineTo(targetX - 9, nodeY(target));
+          nnCtx.stroke();
 
-    // 1. Conexões W1 (Input -> Layer 1)
-    for (let i = 0; i < nodes; i++) {
-      for (let j = 0; j < nodes; j++) {
-        const weight = latestW1?.[i]?.[j] ?? (Math.sin(i * j) * 0.4);
-        nnCtx.strokeStyle = weight >= 0
-          ? `rgba(0, 255, 204, ${Math.min(0.85, Math.abs(weight) + 0.15)})`
-          : `rgba(248, 113, 113, ${Math.min(0.85, Math.abs(weight) + 0.15)})`;
-        nnCtx.lineWidth = Math.max(0.5, Math.min(2.2, Math.abs(weight) * 2.5));
-        nnCtx.beginPath();
-        nnCtx.moveTo(inX, getY(i, nodes));
-        nnCtx.lineTo(h1X, getY(j, nodes));
-        nnCtx.stroke();
+          if (isFlowing) {
+            const progress = stageProgress;
+            const particleX = sourceX + 9 + (targetX - sourceX - 18) * progress;
+            const particleY = nodeY(source) + (nodeY(target) - nodeY(source)) * progress;
+            nnCtx.beginPath();
+            nnCtx.arc(particleX, particleY, px(2 + magnitude * 1.5), 0, Math.PI * 2);
+            nnCtx.fillStyle = weight >= 0 ? '#67e8f9' : '#fca5a5';
+            nnCtx.fill();
+          }
+        }
       }
+    });
+
+    const drawNode = (x, y, value, color, label) => {
+      const strength = Math.min(1, Math.abs(Number(value) || 0));
+      nnCtx.beginPath();
+      nnCtx.arc(x, y, px(8), 0, Math.PI * 2);
+      nnCtx.fillStyle = color;
+      nnCtx.globalAlpha = 0.25 + strength * 0.75;
+      nnCtx.fill();
+      nnCtx.globalAlpha = 1;
+      nnCtx.strokeStyle = '#e2e8f0';
+      nnCtx.lineWidth = 1;
+      nnCtx.stroke();
+      nnCtx.textAlign = 'center';
+      nnCtx.font = `${px(10)}px Consolas, monospace`;
+      nnCtx.fillStyle = '#cbd5e1';
+      nnCtx.fillText(label, x, y + px(25));
+      if (Number.isFinite(Number(value))) {
+        nnCtx.fillStyle = '#f8fafc';
+        nnCtx.font = `${px(7)}px Consolas, monospace`;
+        nnCtx.fillText(Number(value).toFixed(1), x, y + 3);
+      }
+    };
+
+    for (let index = 0; index < nodeCount; index++) {
+      drawNode(columns[0], nodeY(index), inputValues[index], '#0e7490', labels[index]);
+      drawNode(columns[1], nodeY(index), firstLayer[index], '#0284c7', `h${index + 1}`);
+      drawNode(columns[2], nodeY(index), extraLayer[index], '#7c3aed', `e${index + 1}`);
+
+      const probability = Number(outputValues[index] ?? 0);
+      const isWinner = index === latestChosenActionP1;
+      const y = nodeY(index);
+      nnCtx.beginPath();
+      nnCtx.arc(columns[3], y, px(8), 0, Math.PI * 2);
+      nnCtx.fillStyle = isWinner ? '#22c55e' : '#475569';
+      nnCtx.fill();
+      nnCtx.strokeStyle = '#e2e8f0';
+      nnCtx.stroke();
+      nnCtx.fillStyle = '#1e293b';
+      nnCtx.fillRect(columns[3] + 14, y - 6, 90, 12);
+      nnCtx.fillStyle = isWinner ? '#4ade80' : '#38bdf8';
+      nnCtx.fillRect(columns[3] + 14, y - 6, 90 * probability, 12);
+      nnCtx.textAlign = 'right';
+      nnCtx.font = `${px(9)}px Consolas, monospace`;
+      nnCtx.fillStyle = isWinner ? '#86efac' : '#cbd5e1';
+      nnCtx.fillText(['CIMA', 'BAIXO', 'ESQ', 'DIR', 'BOMBA', 'ESP'][index], columns[3] - 13, y + 3);
+      nnCtx.textAlign = 'left';
+      nnCtx.font = `${px(8)}px Consolas, monospace`;
+      nnCtx.fillText(`${(probability * 100).toFixed(0)}%`, columns[3] + 17, y + 3);
     }
 
-    // 2. Conexões W2 (Layer 1 -> Layer 2 Extra)
-    for (let i = 0; i < nodes; i++) {
-      for (let j = 0; j < nodes; j++) {
-        const weight = latestW2?.[i]?.[j] ?? (Math.cos(i + j) * 0.4);
-        nnCtx.strokeStyle = weight >= 0
-          ? `rgba(56, 189, 248, ${Math.min(0.85, Math.abs(weight) + 0.15)})`
-          : `rgba(250, 204, 21, ${Math.min(0.85, Math.abs(weight) + 0.15)})`;
-        nnCtx.lineWidth = Math.max(0.5, Math.min(2.2, Math.abs(weight) * 2.5));
-        nnCtx.beginPath();
-        nnCtx.moveTo(h1X, getY(i, nodes));
-        nnCtx.lineTo(h2X, getY(j, nodes));
-        nnCtx.stroke();
-      }
-    }
+    nnCtx.textAlign = 'left';
+    nnCtx.font = `${px(10)}px Consolas, monospace`;
+    nnCtx.fillStyle = '#38bdf8';
+    nnCtx.fillText('W1 · pesos', 125, 253);
+    nnCtx.fillStyle = '#a78bfa';
+    nnCtx.fillText('W2 · pesos', 320, 253);
+    nnCtx.fillStyle = '#4ade80';
+    nnCtx.fillText('W3 · saída', 515, 253);
 
-    // 3. Conexões W3 (Layer 2 -> Softmax Output)
-    for (let j = 0; j < nodes; j++) {
-      for (let k = 0; k < nodes; k++) {
-        const active = k === latestChosenActionP1;
-        nnCtx.strokeStyle = active ? 'rgba(74, 222, 128, 0.75)' : 'rgba(148, 163, 184, 0.16)';
-        nnCtx.lineWidth = active ? 1.7 : 0.6;
-        nnCtx.beginPath();
-        nnCtx.moveTo(h2X, getY(j, nodes));
-        nnCtx.lineTo(outX, getY(k, nodes));
-        nnCtx.stroke();
-      }
-    }
-
-    // Nós de Entrada, Layer 1, Layer 2 e Saída
-    nnCtx.font = '8.5px monospace';
-    for (let i = 0; i < nodes; i++) {
-      const y = getY(i, nodes);
-      // Input
-      nnCtx.fillStyle = i < 4 ? '#00ffcc' : '#facc15';
-      nnCtx.beginPath(); nnCtx.arc(inX, y, 4, 0, Math.PI * 2); nnCtx.fill();
-
-      // Layer 1
-      nnCtx.fillStyle = '#38bdf8';
-      nnCtx.beginPath(); nnCtx.arc(h1X, y, 4.2, 0, Math.PI * 2); nnCtx.fill();
-
-      // Layer 2 (Extra)
-      nnCtx.fillStyle = '#c084fc';
-      nnCtx.beginPath(); nnCtx.arc(h2X, y, 4.2, 0, Math.PI * 2); nnCtx.fill();
-
-      // Output + Barra Softmax
-      const prob = latestProbsP1[i] ?? 0.16;
-      const isWinner = i === latestChosenActionP1;
-      nnCtx.fillStyle = isWinner ? '#4ade80' : '#475569';
-      nnCtx.beginPath(); nnCtx.arc(outX, y, 4, 0, Math.PI * 2); nnCtx.fill();
-
-      const barW = Math.max(3, Math.round(prob * 48));
-      nnCtx.fillStyle = isWinner ? '#22c55e' : '#334155';
-      nnCtx.fillRect(outX + 8, y - 4, barW, 8);
-
-      nnCtx.fillStyle = isWinner ? '#4ade80' : '#cbd5e1';
-      nnCtx.fillText(`${ACTIONS[i].slice(0, 5)} ${(prob * 100).toFixed(0)}%`, outX + 60, y + 3);
+    if (isTraining) {
+      elNeuralNetStatus.textContent = `Treino: época ${latestTrainingP1.epoch}/${latestTrainingP1.totalEpochs || '…'} · linhas = pesos reais atualizados a cada época.`;
+    } else if (latestForwardTrace) {
+      elNeuralNetStatus.textContent = `Inferência ao vivo · entrada 16 → ReLU ${latestForwardTrace.h1.length} → Extra ${latestForwardTrace.h2.length} → Softmax 6 · destaque verde = ação ${ACTIONS[latestChosenActionP1]}.`;
+    } else {
+      elNeuralNetStatus.textContent = 'Arquitetura carregada · aguardando a primeira inferência para animar o fluxo.';
     }
   }
 
@@ -234,17 +298,17 @@ async function bootstrap() {
 
       if (payload.weightsW1) latestW1 = payload.weightsW1;
       if (payload.weightsW2) latestW2 = payload.weightsW2;
-      drawNeuralNetXRay();
-
-      document.getElementById('p1-conf').textContent = `${(payload.p1.confidence * 100).toFixed(1)}%`;
-      document.getElementById('p1-loss').textContent = payload.p1.loss.toFixed(4);
-      document.getElementById('p1-epoch').textContent = `${payload.p1.epoch}/${payload.p1.totalEpochs}`;
+      if (payload.weightsW3) latestW3 = payload.weightsW3;
       latestTrainingP1 = {
         epoch: payload.p1.epoch,
         totalEpochs: payload.p1.totalEpochs,
         loss: payload.p1.loss
       };
+      drawNeuralNetXRay();
 
+      document.getElementById('p1-conf').textContent = `${(payload.p1.confidence * 100).toFixed(1)}%`;
+      document.getElementById('p1-loss').textContent = payload.p1.loss.toFixed(4);
+      document.getElementById('p1-epoch').textContent = `${payload.p1.epoch}/${payload.p1.totalEpochs}`;
       document.getElementById('p2-conf').textContent = `${(payload.p2.confidence * 100).toFixed(1)}%`;
       document.getElementById('p2-loss').textContent = payload.p2.loss.toFixed(4);
       document.getElementById('p2-epoch').textContent = `${payload.p2.epoch}/${payload.p2.totalEpochs}`;
@@ -277,6 +341,8 @@ async function bootstrap() {
       latestChosenActionP1 = act1;
       latestChosenModeP1 = payload.p1.mode ?? 'MLP';
       if (payload.p1.probs) latestProbsP1 = payload.p1.probs;
+      latestForwardTrace = payload.p1.trace ?? null;
+      latestInferenceAt = performance.now();
       drawNeuralNetXRay();
 
       executeAction(p1, act1);
@@ -403,7 +469,7 @@ async function bootstrap() {
     explosions.push(exp);
     app.stage.addChild(exp);
 
-    const victims = DamageSystem.applyExplosionDamage(exp, [p1, p2], 50);
+    const victims = DamageSystem.applyExplosionDamage(exp, [p1, p2], 100);
     if (victims.length === 0) return;
 
     updateScoreboard();
@@ -411,7 +477,7 @@ async function bootstrap() {
       const message = target === bomb.owner
         ? `💥 ${target.member.name} foi atingido pela própria bomba!`
         : `💥 ${bomb.owner.member.name} atingiu ${target.member.name}!`;
-      logger.log('COMBATE', `${message} (-50 HP | Restante: ${target.hp}%)`);
+      logger.log('COMBATE', `${message} (-100 HP | Restante: ${target.hp}%)`);
     });
 
     const survivors = [p1, p2].filter((player) => player.alive);
@@ -493,7 +559,7 @@ async function bootstrap() {
   await startTrainingAndMatch();
 
   let stepAccumulator = 0;
-  const TACTICAL_STEP_SECONDS = 0.22;
+  const BASE_TACTICAL_STEP_SECONDS = 0.22;
 
   app.ticker.add((ticker) => {
     const dt = ticker.deltaMS / 1000;
@@ -505,6 +571,9 @@ async function bootstrap() {
     if (studyContextAccumulator >= 0.1) {
       studyContextAccumulator = 0;
       renderStudyContext();
+    }
+    if (latestInferenceAt !== null && performance.now() - latestInferenceAt < 720) {
+      drawNeuralNetXRay();
     }
 
     for (let i = bombs.length - 1; i >= 0; i--) {
@@ -525,7 +594,7 @@ async function bootstrap() {
     if (isTraining || matchEnded) return;
 
     stepAccumulator += dt;
-    if (stepAccumulator >= TACTICAL_STEP_SECONDS) {
+    if (stepAccumulator >= BASE_TACTICAL_STEP_SECONDS / gameSpeed) {
       stepAccumulator = 0;
       const stateP1 = FeatureVectorizer.buildTacticalState(grid, p1, p2, bombs, faceVecP1);
       const stateP2 = FeatureVectorizer.buildTacticalState(grid, p2, p1, bombs, faceVecP2);

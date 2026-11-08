@@ -35,7 +35,7 @@ flowchart TB
         M{"13. Bomb Blast Threat?"}
         N["🏃 Mandatory Evasion (BFS)<br/>Navigate around corners to safety"]
         O["🎯 Pursuit & Brick Breaker<br/>Plant offensive bomb & trap opponent"]
-        P["💥 Bomb Detonation<br/>-50 HP to every player in the blast"]
+        P["💥 Bomb Detonation<br/>-100 HP to every player in the blast"]
         Q{"Opponent HP == 0?"}
         R["🏆 VICTORY & GAME OVER<br/>Elimination confirmed on arena HUD"]
 
@@ -152,9 +152,9 @@ where $c_x, c_y, w, h \in [0.000, 1.000]$.
 ## ⚔️ Combat Mechanics & Arena Physics
 
 * **Player-to-Player Physical Collision (PvP):** Agents cannot occupy or pass through the same grid coordinate.
-* **Blast Damage:** Each player in an explosion, including the bomb owner, loses $50\%\text{ HP}$.
+* **Blast Damage:** Each player in an explosion, including the bomb owner, loses $100\%\text{ HP}$ and is eliminated in one hit.
 * **Damage & Elimination:** Each player starts with $100\%\text{ HP}$. A surviving player wins; simultaneous elimination is a draw.
-* **Floating Text Feedback:** Displays dynamic floating text indicators (`-50 HP!` and `💀 ELIMINATED!`) directly above characters.
+* **Floating Text Feedback:** Displays dynamic floating text indicators (`-100 HP!` and `💀 ELIMINATED!`) directly above characters.
 * **Victory Condition:** A match concludes strictly when an agent reduces the opponent's HP to zero.
 
 ## 📂 Project Directory Structure
@@ -243,6 +243,17 @@ the validation panel: **Tela & Recorte**, **Luminância RGB**, **Norm & dispose(
 live-data activity, and a quiz. Its separate diagram canvas is in the dashboard, never
 on top of the running game. Complete a quiz to unlock the next checkpoint; use the
 selector to revisit any stage.
+
+The guided-study panel is connected to the game running in the same browser tab. It
+refreshes local player positions/HP, MLP action probabilities, training progress, bomb
+count, and detections approximately every 100 ms; it does not connect to another
+computer or a remote match.
+
+The neural-network X-ray shows actual trained weights for W1, W2, and W3 and the
+current inference activations: **IN (16) → ReLU → Extra/ReLU → Softmax (6 actions)**.
+The animated dots indicate signal flow during inference. Connections are initialized
+with the model and their weights are adjusted during training; the animation does not
+mean new connections are created on every move.
 
 The diagrams use the current preprocessing values, warmup/training telemetry, MLP
 probabilities, and filtered detections. In **Warmup & Treino**, the six action
